@@ -102,6 +102,34 @@ PoliceSchoolAutomation/
 
 ---
 
+## 🏗️ KRİTİK MİMARİ KURAL (Boss Onaylı)
+
+### 🎯 TEKİL ÇATI MİMARİSİ (DÖNEM ODAKLI)
+
+**Ana Prensip:** *"Her şey Dönem'e (Term) aittir ve onun içinde tanımlanır."*
+
+**ADIM 1: MUTLAK KÖK (DÖNEM OLUŞTURMA)**
+- İlk önce "Kurs/Dönem" oluşturulur (Örn: "68. Polis Temel Eğitimi")
+- ⚠️ **Bu dönem oluşturulmadan sistemde hiçbir işlem yapılamaz**
+
+**ADIM 2: DÖNEMİN İÇ MİMARİSİ VE NÜFUSU**
+1. **Dönem Yapısı Kurulur:**
+   - Dönem için sınıflar oluşturulur (Örn: A, B, C Şubeleri)
+   - Dönem için koğuş kontenjanları ayrılır
+   
+2. **İçerik Yerleştirilir:**
+   - Öğrenciler → Dönem + Sınıf + Koğuş
+   - Eğitmenler → Dönem
+
+**Teknik Kurallar:**
+- ❌ "Genel Sınıf Ekle" ekranı OLMAMALI
+- ✅ "Döneme Sınıf Ekle" ekranı olmalı
+- ✅ `Class` tablosu mutlaka `termId` içermeli
+- ✅ Unique constraint: (`termId` + `name`)
+- ✅ 68. Dönem A Şubesi ≠ 69. Dönem A Şubesi
+
+---
+
 ## ⚠️ Önemli İş Kuralları (KKTC)
 
 1. **Bütünleme sınavı YOKTUR** (KKTC kuralı)
@@ -113,3 +141,6 @@ PoliceSchoolAutomation/
 
 ## 📅 Oluşturulma Tarihi
 22 Aralık 2025
+
+## 🔄 Son Güncelleme
+22 Aralık 2025 - Dönem Odaklı Mimari Kararı

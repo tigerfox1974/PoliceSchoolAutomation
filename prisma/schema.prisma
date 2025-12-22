@@ -43,9 +43,14 @@ enum InstructorType {
 
 // Dönem/Kurs Tipi
 enum TermType {
-  PTE  // Polis Temel Eğitimi
-  IYEP // İleri Eğitim Programı
-  TE   // Trafik Eğitimi
+  POLICE    // Polis Temel Eğitimi
+  FIRE      // İtfaiye Temel Eğitimi
+}
+
+// Kurs Süresi
+enum TermDuration {
+  FOUR_MONTHS  // 4 Ay
+  SIX_MONTHS   // 6 Ay
 }
 
 // Ders Tipi
@@ -181,15 +186,16 @@ model User {
 // ============================================================================
 
 model Term {
-  id          String   @id @default(cuid())
-  name        String   // "68. Dönem Polis Temel Eğitimi"
-  termNumber  Int      // 68
-  termCode    String   @unique // Otomatik: "PTE-68"
-  termType    TermType
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean  @default(true)
-  description String?
+  id           String       @id @default(cuid())
+  name         String       // "68. Polis Temel Eğitimi"
+  termNumber   Int          // 68
+  termCode     String       @unique // Otomatik: "POL-68" veya "FIRE-68"
+  termType     TermType     // POLICE veya FIRE
+  duration     TermDuration // FOUR_MONTHS veya SIX_MONTHS
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean      @default(true)
+  description  String?
 
   // Soft delete
   isDeleted Boolean   @default(false)
