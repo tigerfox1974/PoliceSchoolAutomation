@@ -1,0 +1,1166 @@
+// KKTC Polis Okulu Eğitim ve Operasyon Yönetim Sistemi
+// Veritabanı Şeması - Tüm Modüller
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUM TANIMLARI
+// ============================================================================
+
+// Kullanıcı Rolleri
+enum UserRole {
+  ADMIN              // Yönetici - Tam erişim
+  INSTRUCTOR         // Eğitmen - Kendi dersleri
+  STUDENT_AFFAIRS    // Öğrenci İşleri Personeli
+}
+
+// Cinsiyet
+enum Gender {
+  MALE    // Erkek
+  FEMALE  // Kadın
+}
+
+// Medeni Hal
+enum MaritalStatus {
+  SINGLE   // Bekar
+  MARRIED  // Evli
+  DIVORCED // Boşanmış
+  WIDOWED  // Dul
+}
+
+// Eğitmen Tipi
+enum InstructorType {
+  CADRE     // Kadrolu Personel (Nöbet tutar)
+  EXTERNAL  // Dış Kaynak (Nöbet tutmaz)
+}
+
+// Dönem/Kurs Tipi
+enum TermType {
+  PTE  // Polis Temel Eğitimi
+  IYEP // İleri Eğitim Programı
+  TE   // Trafik Eğitimi
+}
+
+// Ders Tipi
+enum CourseType {
+  STANDARD   // Standart Ders (Haftalık düzenli)
+  CONFERENCE // Konferans (Tek seferlik)
+  PANEL      // Panel (Düzensiz aktivite)
+}
+
+// Yoklama Durumu
+enum AttendanceStatus {
+  PRESENT           // Var (Sınıfta)
+  ABSENT            // Yok (Gelmemiş)
+  PERMITTED         // İzinli (Evci, yıllık izin vb.)
+  MEDICAL_REPORT    // Raporlu (Sağlık raporu ile)
+  HOSPITALIZED      // Hastane Yatışı
+  DORM_REST         // Koğuş İstirahati (Okulda ama raporlu - YEMEK YER)
+}
+
+// İzin Tipi
+enum LeaveType {
+  WEEKEND_LEAVE   // Evci (Hafta sonu izni)
+  ANNUAL_LEAVE    // Yıllık İzin
+  EXCUSE_LEAVE    // Mazeret İzni
+  HOSPITALIZATION // Hastane Yatışı
+}
+
+// Nöbet Tipi
+enum DutyType {
+  MORNING   // Sabah Nöbeti: 06:00 - 09:00
+  NOON      // Öğle Nöbeti: 12:00 - 13:00
+  EVENING   // Akşam Nöbeti: 17:00 - 22:00
+  NIGHT     // Gece Nöbeti: 22:00 - 06:00
+  OFFICER   // Personel/Amir Nöbeti
+}
+
+// Nöbet Kaynağı (Neden nöbete yazıldı)
+enum DutySource {
+  REGULAR      // Normal nöbet çizelgesi
+  DISCIPLINARY // Disiplin cezası sonucu
+  SWAP         // Takas sonucu
+}
+
+// Disiplin Ceza Tipi
+enum DisciplinaryPenaltyType {
+  WARNING           // Uyarı
+  REPRIMAND         // Kınama
+  POINT_DEDUCTION   // Puan Cezası
+  EXTRA_DUTY        // İlave Nöbet Cezası (Hafta sonu)
+}
+
+// Disiplin Süreci Durumu
+enum DisciplinaryProcessStatus {
+  INCIDENT_REPORTED  // Olay Raporu Yazıldı
+  DEFENSE_REQUESTED  // Savunma İstendi
+  DEFENSE_RECEIVED   // Savunma Alındı
+  BOARD_REVIEW       // Kurul İncelemesinde
+  DECIDED            // Karar Verildi
+  CLOSED             // Dosya Kapatıldı
+}
+
+// Sınav Tipi
+enum ExamType {
+  MIDTERM  // Ara Sınav (Birden fazla olabilir)
+  FINAL    // Final Sınavı (Tek)
+  QUIZ     // Quiz/Kısa Sınav
+}
+
+// Hafta Günleri
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// Dış Görev Tipi
+enum ExternalActivityType {
+  SHOOTING_TRAINING // Atış Eğitimi
+  FIELD_TRIP        // Gezi
+  PRACTICE          // Uygulama
+  OTHER             // Diğer
+}
+
+// Dinamik Alan Tipi
+enum DynamicFieldType {
+  TEXT     // Metin
+  NUMBER   // Sayı
+  DATE     // Tarih
+  BOOLEAN  // Evet/Hayır
+}
+
+// Dinamik Alan Hedef Entity
+enum DynamicFieldTarget {
+  STUDENT    // Öğrenci için
+  INSTRUCTOR // Eğitmen için
+}
+
+// ============================================================================
+// KULLANICI VE KİMLİK DOĞRULAMA
+// ============================================================================
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  firstName   String
+  lastName    String
+  visibleName String   // Görüntülenecek isim (ad soyad veya unvan)
+  role        UserRole @default(INSTRUCTOR)
+  isActive    Boolean  @default(true)
+
+  // İlişkiler
+  instructorId String?     @unique
+  instructor   Instructor? @relation(fields: [instructorId], references: [id])
+
+  // Audit alanları
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Oluşturulan kayıtlar (audit için)
+  createdStudents    Student[]    @relation("CreatedByUser")
+  createdInstructors Instructor[] @relation("CreatedByUser")
+
+  @@map("users")
+}
+
+// ============================================================================
+// DÖNEM/KURS YÖNETİMİ
+// ============================================================================
+
+model Term {
+  id          String   @id @default(cuid())
+  name        String   // "68. Dönem Polis Temel Eğitimi"
+  termNumber  Int      // 68
+  termCode    String   @unique // Otomatik: "PTE-68"
+  termType    TermType
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  description String?
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  students           Student[]
+  instructorTerms    InstructorTerm[]
+  classes            Class[]
+  courses            Course[]
+  scheduleEntries    ScheduleEntry[]
+  exams              Exam[]
+  dynamicFieldValues DynamicFieldValue[]
+
+  @@map("terms")
+}
+
+// ============================================================================
+// ÖĞRENCİ YÖNETİMİ
+// ============================================================================
+
+model Student {
+  id String @id @default(cuid())
+
+  // Temel Bilgiler (Sabit Alanlar)
+  tcKimlikNo String @unique // KKTC Kimlik Numarası (10 haneli)
+  firstName  String
+  lastName   String
+  gender     Gender
+  birthDate  DateTime
+  email      String?
+  phone      String?
+  address    String?
+
+  // Aile Bilgileri
+  motherName      String?
+  motherSurname   String?
+  motherEducation String?
+  fatherName      String?
+  fatherSurname   String?
+  fatherEducation String?
+
+  // Kişisel Bilgiler
+  maritalStatus MaritalStatus?
+
+  // Eğitim Bilgileri
+  highSchool String?
+  university String?
+  faculty    String?
+  department String?
+
+  // Fotoğraf
+  photoUrl String?
+
+  // Organizasyon Bilgileri
+  termId String?
+  term   Term?   @relation(fields: [termId], references: [id])
+
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id])
+
+  dormitoryId String?
+  dormitory   Dormitory? @relation(fields: [dormitoryId], references: [id])
+
+  // Durum
+  isActive Boolean @default(true)
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  createdBy   User?    @relation("CreatedByUser", fields: [createdById], references: [id])
+
+  // İlişkiler
+  attendances         Attendance[]
+  leaves              Leave[]
+  studentDuties       StudentDuty[]
+  disciplinaryRecords DisciplinaryRecord[]
+  examResults         ExamResult[]
+  shootingRecords     ShootingRecord[]
+  dynamicFieldValues  DynamicFieldValue[]
+  documents           StudentDocument[]
+  mealExclusions      MealExclusion[]
+
+  @@index([termId])
+  @@index([classId])
+  @@index([dormitoryId])
+  @@index([tcKimlikNo])
+  @@map("students")
+}
+
+// Öğrenci Belgeleri
+model StudentDocument {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  fileName    String
+  fileUrl     String
+  fileType    String // PDF, Word vb.
+  description String?
+
+  uploadedAt DateTime @default(now())
+
+  @@map("student_documents")
+}
+
+// ============================================================================
+// SINIF YÖNETİMİ
+// ============================================================================
+
+model Class {
+  id       String @id @default(cuid())
+  name     String // "A Sınıfı", "B Sınıfı"
+  code     String // "A", "B", "C"
+  capacity Int    @default(30)
+
+  termId String
+  term   Term   @relation(fields: [termId], references: [id])
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  students        Student[]
+  scheduleEntries ScheduleEntry[]
+  attendances     Attendance[]
+
+  @@unique([termId, code])
+  @@map("classes")
+}
+
+// ============================================================================
+// KOĞUŞ (YATAKHANE) YÖNETİMİ
+// ============================================================================
+
+model Dormitory {
+  id               String  @id @default(cuid())
+  number           String  @unique // Koğuş numarası
+  name             String? // Koğuş ismi (opsiyonel)
+  capacity         Int
+  currentOccupancy Int     @default(0)
+  gender           Gender  // Erkek koğuşu / Kadın koğuşu
+  isReserve        Boolean @default(false) // Yedek koğuş
+  floor            Int? // Kat numarası
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  students Student[]
+
+  @@map("dormitories")
+}
+
+// ============================================================================
+// EĞİTMEN YÖNETİMİ
+// ============================================================================
+
+model Instructor {
+  id         String @id @default(cuid())
+  tcKimlikNo String @unique
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+
+  instructorType InstructorType
+
+  // Kadrolu Personel için
+  rank        String? // Rütbe: Komiser, Başçavuş vb.
+  badgeNumber String? // Sicil Numarası
+
+  // Dış Kaynak için
+  institution String? // Kurum: Savcılık, Üniversite vb.
+
+  // Ortak alanlar
+  branch String? // Branş/Uzmanlık Alanı
+
+  // Durum
+  isActive Boolean @default(true)
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String?
+  createdBy   User?    @relation("CreatedByUser", fields: [createdById], references: [id])
+
+  // İlişkiler
+  user               User?
+  instructorTerms    InstructorTerm[]
+  courseInstructors  CourseInstructor[]
+  scheduleEntries    ScheduleEntry[]
+  availabilities     InstructorAvailability[]
+  officerDuties      OfficerDuty[]
+  attendancesTaken   Attendance[]
+  dynamicFieldValues DynamicFieldValue[]
+
+  @@map("instructors")
+}
+
+// Eğitmen-Dönem İlişkisi (Çoklu dönem desteği)
+model InstructorTerm {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  termId       String
+  term         Term       @relation(fields: [termId], references: [id])
+
+  assignedAt DateTime @default(now())
+
+  @@unique([instructorId, termId])
+  @@map("instructor_terms")
+}
+
+// Dış Eğitmen Müsaitlik Günleri
+model InstructorAvailability {
+  id           String     @id @default(cuid())
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  dayOfWeek DayOfWeek
+  startTime String // "09:00"
+  endTime   String // "17:00"
+
+  isAvailable Boolean @default(true)
+  note        String?
+
+  @@unique([instructorId, dayOfWeek])
+  @@map("instructor_availabilities")
+}
+
+// ============================================================================
+// DERS YÖNETİMİ
+// ============================================================================
+
+model Course {
+  id          String     @id @default(cuid())
+  code        String // "TR101", "CZH201"
+  name        String // "Trafik Mevzuatı"
+  targetHours Int // Toplam hedef saat
+  credit      Int? // Kredi (varsa)
+  courseType  CourseType @default(STANDARD)
+  description String?
+
+  termId String
+  term   Term   @relation(fields: [termId], references: [id])
+
+  // Üst ders ilişkisi (Alt dersler için)
+  parentCourseId String?
+  parentCourse   Course?  @relation("SubCourses", fields: [parentCourseId], references: [id])
+  subCourses     Course[] @relation("SubCourses")
+
+  // Not hesaplama ağırlığı (Alt ders ise)
+  weightPercentage Float? // %30, %40 vb.
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  courseInstructors CourseInstructor[]
+  scheduleEntries   ScheduleEntry[]
+  exams             Exam[]
+  attendances       Attendance[]
+
+  @@unique([termId, code])
+  @@map("courses")
+}
+
+// Ders-Eğitmen Ataması
+model CourseInstructor {
+  id           String     @id @default(cuid())
+  courseId     String
+  course       Course     @relation(fields: [courseId], references: [id])
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  assignedAt    DateTime @default(now())
+  hoursAssigned Int? // Bu eğitmene atanan saat
+
+  @@unique([courseId, instructorId])
+  @@map("course_instructors")
+}
+
+// ============================================================================
+// DERS PROGRAMI
+// ============================================================================
+
+// Ders Saati Tanımı (KKTC Mesai Şablonu)
+model TimeSlot {
+  id         String  @id @default(cuid())
+  slotNumber Int // 1, 2, 3...
+  startTime  String // "09:00"
+  endTime    String // "10:00"
+  isBreak    Boolean @default(false) // Öğle arası için
+
+  // İlişkiler
+  scheduleEntries ScheduleEntry[]
+
+  @@unique([startTime, endTime])
+  @@map("time_slots")
+}
+
+// Haftalık Ders Programı Girişi
+model ScheduleEntry {
+  id String @id @default(cuid())
+
+  termId String
+  term   Term   @relation(fields: [termId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  dayOfWeek DayOfWeek
+
+  timeSlotId String
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+
+  // Belirli tarih için (tek seferlik dersler)
+  specificDate DateTime?
+
+  // Durum
+  isCancelled  Boolean @default(false)
+  cancelReason String?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, dayOfWeek, timeSlotId, specificDate])
+  @@index([instructorId, dayOfWeek])
+  @@map("schedule_entries")
+}
+
+// Ders Programı Değişikliği / Takas Kaydı
+model ScheduleSwap {
+  id String @id @default(cuid())
+
+  originalDate         DateTime
+  originalInstructorId String
+  originalCourseId     String
+
+  replacementDate         DateTime?
+  replacementInstructorId String?
+  replacementCourseId     String?
+
+  reason String // Neden değişiklik yapıldı
+
+  // Takas durumu (Eğitmen borcu takibi)
+  isDebtSettled Boolean @default(false) // Takas borcu kapatıldı mı
+
+  // Audit
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  @@map("schedule_swaps")
+}
+
+// KKTC Resmi Tatilleri
+model PublicHoliday {
+  id          String   @id @default(cuid())
+  name        String // "Kurban Bayramı"
+  date        DateTime
+  isRecurring Boolean  @default(false) // Her yıl aynı tarihte mi
+
+  // Audit
+  createdAt DateTime @default(now())
+
+  @@map("public_holidays")
+}
+
+// ============================================================================
+// NÖBET YÖNETİMİ
+// ============================================================================
+
+// Personel (Amir) Nöbeti - SADECE KADROLU PERSONEL
+model OfficerDuty {
+  id String @id @default(cuid())
+
+  instructorId String
+  instructor   Instructor @relation(fields: [instructorId], references: [id])
+
+  dutyDate DateTime
+  dutyType DutyType
+
+  // Nöbet sonrası bloke durumu
+  isBlockedNextDay Boolean @default(true) // Ertesi gün bloke
+  blockOverridden  Boolean @default(false) // Yönetici blokeyi kaldırdı mı
+
+  // Kaynak
+  source DutySource @default(REGULAR)
+
+  // Takas bilgisi
+  swappedWithId String? // Kimle takas edildi
+  swapNote      String?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instructorId, dutyDate, dutyType])
+  @@map("officer_duties")
+}
+
+// Öğrenci Nöbeti
+model StudentDuty {
+  id String @id @default(cuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  dutyDate DateTime
+  dutyType DutyType
+
+  // Kaynak - ÖNEMLİ: Disiplin cezası bağlantısı
+  source DutySource @default(REGULAR)
+
+  // Disiplin kaydı bağlantısı (Ceza nöbeti ise)
+  disciplinaryRecordId String?
+  disciplinaryRecord   DisciplinaryRecord? @relation(fields: [disciplinaryRecordId], references: [id])
+
+  // Takas bilgisi
+  swappedWithId String?
+  swapNote      String?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, dutyDate, dutyType])
+  @@index([dutyDate])
+  @@map("student_duties")
+}
+
+// ============================================================================
+// YOKLAMA VE İZİN YÖNETİMİ
+// ============================================================================
+
+// Yoklama Kaydı
+model Attendance {
+  id String @id @default(cuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  classId String
+  class   Class  @relation(fields: [classId], references: [id])
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+
+  date   DateTime
+  status AttendanceStatus
+
+  // Koğuş İstirahati özel işareti - YEMEK SİSTEMİ İÇİN KRİTİK
+  isDormRest Boolean @default(false)
+
+  note String?
+
+  // Yoklamayı alan eğitmen
+  takenById String?
+  takenBy   Instructor? @relation(fields: [takenById], references: [id])
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, courseId, date])
+  @@index([date])
+  @@index([status])
+  @@map("attendances")
+}
+
+// İzin Kayıtları
+model Leave {
+  id String @id @default(cuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  leaveType LeaveType
+  startDate DateTime
+  endDate   DateTime
+
+  reason      String?
+  documentUrl String? // İzin belgesi
+
+  isApproved   Boolean   @default(false)
+  approvedById String?
+  approvedAt   DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId, startDate, endDate])
+  @@map("leaves")
+}
+
+// ============================================================================
+// İAŞE (YEMEKHANE) HAK EDİŞ SİSTEMİ
+// ============================================================================
+
+// Günlük Yemek Sayısı Özeti
+model DailyMealCount {
+  id String @id @default(cuid())
+
+  date DateTime @unique
+
+  // Sayılar
+  totalStudents Int @default(0)
+  totalStaff    Int @default(0)
+  totalGuests   Int @default(0)
+
+  // Düşülen sayılar
+  onLeaveCount      Int @default(0) // İzinli
+  hospitalizedCount Int @default(0) // Hastane yatışı
+
+  // Eklenen sayılar
+  weekendDutyStudents Int @default(0) // Hafta sonu nöbetçi öğrenciler
+  weekendDutyStaff    Int @default(0) // Hafta sonu nöbetçi personel
+  disciplinaryDuty    Int @default(0) // Disiplin cezası ile nöbet
+
+  // Toplam
+  grandTotal Int @default(0)
+
+  // Onay
+  isFinalized   Boolean   @default(false)
+  finalizedById String?
+  finalizedAt   DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  mealGuests     MealGuest[]
+  mealExclusions MealExclusion[]
+
+  @@map("daily_meal_counts")
+}
+
+// Dış Misafir Kaydı
+model MealGuest {
+  id String @id @default(cuid())
+
+  dailyMealCountId String
+  dailyMealCount   DailyMealCount @relation(fields: [dailyMealCountId], references: [id])
+
+  guestCount  Int
+  description String? // "Savcılık ekibi"
+
+  // Audit
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  @@map("meal_guests")
+}
+
+// Yemekten Düşme/Ekleme Kaydı (Manuel düzeltmeler)
+model MealExclusion {
+  id String @id @default(cuid())
+
+  dailyMealCountId String
+  dailyMealCount   DailyMealCount @relation(fields: [dailyMealCountId], references: [id])
+
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  isExcluded Boolean // true: düşüldü, false: eklendi
+  reason     String
+
+  // Audit
+  createdAt   DateTime @default(now())
+  createdById String?
+
+  @@map("meal_exclusions")
+}
+
+// ============================================================================
+// DİSİPLİN VE CEZA SİSTEMİ
+// ============================================================================
+
+// Suç/İhlal Tipi Tanımı
+model ViolationType {
+  id            String @id @default(cuid())
+  code          String @unique
+  name          String // "İzinsiz dışarı çıkma"
+  description   String?
+  defaultPoints Int // Varsayılan ceza puanı (Örn: -10)
+
+  // İlişkiler
+  disciplinaryRecords DisciplinaryRecord[]
+
+  @@map("violation_types")
+}
+
+// Disiplin Kaydı
+model DisciplinaryRecord {
+  id String @id @default(cuid())
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  // Olay Bilgileri
+  incidentDate        DateTime
+  violationTypeId     String
+  violationType       ViolationType @relation(fields: [violationTypeId], references: [id])
+  incidentDescription String?
+
+  // Ceza Bilgileri
+  penaltyPoints Int                       @default(0) // Kesilen puan
+  penaltyType   DisciplinaryPenaltyType?
+
+  // Süreç Durumu
+  processStatus DisciplinaryProcessStatus @default(INCIDENT_REPORTED)
+
+  // Süreç Tarihleri
+  defenseRequestedAt DateTime?
+  defenseReceivedAt  DateTime?
+  boardReviewDate    DateTime?
+  decisionDate       DateTime?
+
+  // Karar Bilgileri
+  decisionNote String?
+  decidedById  String?
+
+  // Belgeler
+  documents DisciplinaryDocument[]
+
+  // Nöbet cezası bağlantısı - ENTEGRASYON İÇİN KRİTİK
+  studentDuties StudentDuty[]
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([processStatus])
+  @@map("disciplinary_records")
+}
+
+// Disiplin Belgeleri
+model DisciplinaryDocument {
+  id                   String             @id @default(cuid())
+  disciplinaryRecordId String
+  disciplinaryRecord   DisciplinaryRecord @relation(fields: [disciplinaryRecordId], references: [id])
+
+  fileName String
+  fileUrl  String
+  fileType String
+  stage    String // "incident", "defense", "decision"
+
+  uploadedAt DateTime @default(now())
+
+  @@map("disciplinary_documents")
+}
+
+// Öğrenci Disiplin Puan Özeti
+model StudentDisciplineScore {
+  id        String @id @default(cuid())
+  studentId String @unique
+
+  initialScore Int @default(100) // Başlangıç puanı
+  currentScore Int @default(100) // Mevcut puan
+
+  // Kritik eşik uyarısı
+  isCritical Boolean @default(false) // 25 puan veya altı
+
+  // Audit
+  updatedAt DateTime @updatedAt
+
+  @@map("student_discipline_scores")
+}
+
+// ============================================================================
+// SINAV VE NOT SİSTEMİ
+// ============================================================================
+
+// Sınav Tanımı
+model Exam {
+  id String @id @default(cuid())
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+
+  termId String
+  term   Term   @relation(fields: [termId], references: [id])
+
+  examType   ExamType
+  examNumber Int? // Ara sınav 1, ara sınav 2 vb.
+
+  examDate    DateTime
+  duration    Int // Dakika
+  totalPoints Int  @default(100)
+
+  // Not: Bütünleme sınavı YOKTUR (KKTC kuralı)
+
+  // Ağırlık (Not hesaplaması için)
+  weightPercentage Float? // Bu sınavın dersin notuna katkısı %
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  examResults ExamResult[]
+
+  @@unique([courseId, examType, examNumber])
+  @@map("exams")
+}
+
+// Sınav Sonucu
+model ExamResult {
+  id String @id @default(cuid())
+
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id])
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  score Float // 0-100
+
+  // Düzenleme geçmişi
+  previousScore Float?
+
+  // Audit
+  enteredById String?
+  enteredAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([examId, studentId])
+  @@map("exam_results")
+}
+
+// Öğrenci Ders Notu Özeti
+model StudentCourseGrade {
+  id String @id @default(cuid())
+
+  studentId String
+  courseId  String
+
+  midtermAverage Float? // Ara sınavlar ortalaması
+  finalScore     Float? // Final notu
+
+  // Hesaplanan final not
+  calculatedGrade Float?
+
+  // Harf notu (opsiyonel)
+  letterGrade String?
+
+  // Geçti/Kaldı durumu
+  isPassed Boolean @default(false)
+
+  // Audit
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, courseId])
+  @@map("student_course_grades")
+}
+
+// Öğrenci Genel Not Ortalaması
+model StudentGPA {
+  id        String @id @default(cuid())
+  studentId String @unique
+
+  gpa          Float @default(0)
+  totalCredits Int   @default(0)
+
+  // Disiplin notu etkisi
+  disciplineScore Float @default(100)
+
+  // Mezuniyet sıralaması
+  classRank Int?
+
+  // Audit
+  updatedAt DateTime @updatedAt
+
+  @@map("student_gpas")
+}
+
+// ============================================================================
+// ATIŞ EĞİTİMİ VE DIŞ GÖREVLER
+// ============================================================================
+
+// Dış Görev/Etkinlik
+model ExternalActivity {
+  id String @id @default(cuid())
+
+  date         DateTime
+  activityType ExternalActivityType
+  location     String // Poligon yeri, gezi yeri vb.
+  description  String?
+
+  // Katılımcı sınıflar (tüm sınıf gidiyorsa)
+  classIds String[] // JSON array of class IDs
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  shootingRecords ShootingRecord[]
+
+  @@map("external_activities")
+}
+
+// Atış Eğitimi Kaydı
+model ShootingRecord {
+  id String @id @default(cuid())
+
+  externalActivityId String
+  externalActivity   ExternalActivity @relation(fields: [externalActivityId], references: [id])
+
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id])
+
+  // Atış Detayları
+  distance       Int // Metre (10, 25 vb.)
+  weaponType     String // Tabanca, tüfek vb.
+  roundsFired    Int // Atış sayısı
+  ammunitionUsed Int // Harcanan mermi (Envanter için)
+  score          Float? // Puan
+
+  // Not
+  notes String?
+
+  // Audit
+  createdAt DateTime @default(now())
+
+  @@unique([externalActivityId, studentId])
+  @@map("shooting_records")
+}
+
+// ============================================================================
+// DİNAMİK ALAN YÖNETİMİ
+// ============================================================================
+
+// Dinamik Alan Tanımı
+model DynamicField {
+  id String @id @default(cuid())
+
+  name         String // "Kan Grubu", "Ayakkabı No"
+  fieldKey     String // "blood_type", "shoe_size"
+  fieldType    DynamicFieldType
+  targetEntity DynamicFieldTarget
+
+  isRequired Boolean @default(false)
+  isActive   Boolean @default(true)
+
+  // Seçenekler (dropdown için)
+  options String[] // ["A+", "A-", "B+", "B-", ...]
+
+  // Sıralama
+  sortOrder Int @default(0)
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // İlişkiler
+  values DynamicFieldValue[]
+
+  @@unique([fieldKey, targetEntity])
+  @@map("dynamic_fields")
+}
+
+// Dinamik Alan Değeri
+model DynamicFieldValue {
+  id String @id @default(cuid())
+
+  dynamicFieldId String
+  dynamicField   DynamicField @relation(fields: [dynamicFieldId], references: [id])
+
+  // Öğrenci veya Eğitmen
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+
+  instructorId String?
+  instructor   Instructor? @relation(fields: [instructorId], references: [id])
+
+  // Dönem bazlı (opsiyonel)
+  termId String?
+  term   Term?   @relation(fields: [termId], references: [id])
+
+  // Değer (JSON olarak saklanır - her tip için)
+  value Json
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([dynamicFieldId, studentId])
+  @@unique([dynamicFieldId, instructorId])
+  @@map("dynamic_field_values")
+}
+
+// ============================================================================
+// SİSTEM AYARLARI VE LOGLAR
+// ============================================================================
+
+// Sistem Ayarları
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value Json
+
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// İşlem Logları (Audit Trail)
+model AuditLog {
+  id String @id @default(cuid())
+
+  userId    String?
+  userEmail String?
+
+  action   String // CREATE, UPDATE, DELETE
+  entity   String // Student, Instructor, etc.
+  entityId String?
+
+  oldValues Json?
+  newValues Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
