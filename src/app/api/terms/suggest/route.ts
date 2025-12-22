@@ -21,7 +21,12 @@ export async function GET(request: Request) {
       select: { termNumber: true },
     })
 
-    const suggestedNumber = lastTerm ? lastTerm.termNumber + 1 : 1
+    // Kayıt yoksa veya dönem numarası null ise öneri yapma
+    if (!lastTerm || lastTerm.termNumber === null) {
+      return NextResponse.json({ suggestedNumber: null })
+    }
+
+    const suggestedNumber = lastTerm.termNumber + 1
 
     return NextResponse.json({ suggestedNumber })
   } catch (error) {

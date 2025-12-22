@@ -51,13 +51,20 @@ export default function TermsPage() {
     try {
       const res = await fetch(`/api/terms/suggest?termType=${type}`)
       const data = await res.json()
-      const suggested = data.suggestedNumber || 1
-      setSuggestedNumber(suggested)
-      setCurrentTermNumber(suggested)
+      const suggested = data.suggestedNumber
+      
+      // Eğer öneri null ise kullanıcı manuel girecek
+      if (suggested === null) {
+        setSuggestedNumber(0)
+        setCurrentTermNumber(0)
+      } else {
+        setSuggestedNumber(suggested || 1)
+        setCurrentTermNumber(suggested || 1)
+      }
     } catch (error) {
       console.error('Öneri alınamadı:', error)
-      setSuggestedNumber(1)
-      setCurrentTermNumber(1)
+      setSuggestedNumber(0)
+      setCurrentTermNumber(0)
     }
   }
 
@@ -123,6 +130,55 @@ export default function TermsPage() {
     }
   }
 
+  const handleDeleteTerm = async (termId: string, termName: string) => {
+    if (!confirm(`"${termName}" dönemini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve tüm ilişkili veriler silinecektir.`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/terms/${termId}`, {
+        method: 'DELETE',
+      })
+
+      if (res.ok) {
+        fetchTerms()
+        alert('Dönem başarıyla silindi')
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Dönem silinemedi')
+      }
+    } catch (error) {
+      console.error('Dönem silme hatası:', error)
+      alert('Sunucu hatası')
+    }
+  }
+
+  const handleArchiveTerm = async (termId: string, termName: string, isCurrentlyActive: boolean) => {
+    const action = isCurrentlyActive ? 'arşivlemek' : 'arşivden çıkarmak'
+    if (!confirm(`"${termName}" dönemini ${action} istediğinizden emin misiniz?`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/terms/${termId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !isCurrentlyActive }),
+      })
+
+      if (res.ok) {
+        fetchTerms()
+        alert(`Dönem başarıyla ${isCurrentlyActive ? 'arşivlendi' : 'arşivden çıkarıldı'}`)
+      } else {
+        const error = await res.json()
+        alert(error.error || 'İşlem başarısız')
+      }
+    } catch (error) {
+      console.error('Arşivleme hatası:', error)
+      alert('Sunucu hatası')
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -171,30 +227,31 @@ export default function TermsPage() {
                 placeholder="Dönem numarasını girin"
                 className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
+              {suggestedNumber > 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  💡 Önerilen: {suggestedNumber}. dönem (Son kayıtlara göre)
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block mb-2 font-medium">Dönem Kodu (Otomatik)</label>
+              <input
+                type="text"
+                value={currentTermNumber > 0 ? `${selectedType === 'POLICE' ? 'PTE' : 'İTE'}-${String(currentTermNumber).padStart(2, '0')}` : ''}
+                disabled
+                placeholder={currentTermNumber > 0 ? '' : 'Dönem numarası girilince otomatik üretilecektir'}
+                className="w-full px-4 py-2 border rounded bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-not-allowed"
+              />
               <p className="text-sm text-gray-500 mt-1">
-                💡 Önerilen: {suggestedNumber}. dönem (Son kayıtlara göre)
+                🔒 Otomatik oluşturulur, değiştirilemez
               </p>
             </div>
 
             {currentTermNumber > 0 && (
-              <div>
-                <label className="block mb-2 font-medium">Dönem Kodu (Otomatik)</label>
-                <input
-                  type="text"
-                  value={`${selectedType === 'POLICE' ? 'PTE' : 'İTE'}-${String(currentTermNumber).padStart(2, '0')}`}
-                  disabled
-                  className="w-full px-4 py-2 border rounded bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 cursor-not-allowed"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  🔒 Otomatik oluşturulur, değiştirilemez
-                </p>
-              </div>
-            )}
-
-            {currentTermNumber > 0 && (
               <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded">
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  📝 Tam Adı: <strong>{currentTermNumber}. {selectedType === 'POLICE' ? 'Polis Temel Eğitimi' : 'İtfaiye Temel Eğitimi'}</strong>
+                  📝 Dönem Adı: <strong>{currentTermNumber}. {selectedType === 'POLICE' ? 'Polis Temel Eğitimi' : 'İtfaiye Temel Eğitimi'}</strong>
                 </p>
               </div>
             )}
@@ -274,43 +331,84 @@ export default function TermsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {terms.map((term) => (
-            <Link
+            <div
               key={term.id}
-              href={`/terms/${term.id}`}
-              className="block bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6 relative"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-bold">{term.name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {term.termCode}
-                  </p>
+              <Link
+                href={`/terms/${term.id}`}
+                className="block"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold">{term.name}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {term.termCode}
+                    </p>
+                  </div>
+                  {term.isActive && (
+                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">
+                      Aktif
+                    </span>
+                  )}
                 </div>
-                {term.isActive && (
-                  <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">
-                    Aktif
-                  </span>
-                )}
-              </div>
 
-              <div className="space-y-2 text-sm">
-                <p>
-                  {term.termType === 'POLICE' ? '🚔' : '🚒'} {term.termType === 'POLICE' ? 'Polis Eğitimi' : 'İtfaiye Eğitimi'}
-                </p>
-                <p>
-                  ⏱️ Süre: {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}
-                </p>
-                <p>
-                  📅 {new Date(term.startDate).toLocaleDateString('tr-TR')} -{' '}
-                  {new Date(term.endDate).toLocaleDateString('tr-TR')}
-                </p>
-                <div className="flex justify-between pt-4 border-t">
-                  <span>👨‍🎓 {term._count.students}</span>
-                  <span>🏫 {term._count.classes}</span>
-                  <span>👨‍🏫 {term._count.instructorTerms}</span>
+                <div className="space-y-2 text-sm">
+                  <p>
+                    {term.termType === 'POLICE' ? '🚔' : '🚒'} {term.termType === 'POLICE' ? 'Polis Eğitimi' : 'İtfaiye Eğitimi'}
+                  </p>
+                  <p>
+                    ⏱️ Süre: {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}
+                  </p>
+                  <p>
+                    📅 {new Date(term.startDate).toLocaleDateString('tr-TR')} -{' '}
+                    {new Date(term.endDate).toLocaleDateString('tr-TR')}
+                  </p>
+                  <div className="flex justify-between pt-4 border-t">
+                    <span>👨‍🎓 {term._count.students}</span>
+                    <span>🏫 {term._count.classes}</span>
+                    <span>👨‍🏫 {term._count.instructorTerms}</span>
+                  </div>
                 </div>
+              </Link>
+
+              <div className="flex gap-2 mt-4 pt-4 border-t">
+                <Link
+                  href={`/terms/${term.id}/edit`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    alert('Düzenleme özelliği yakında eklenecek')
+                  }}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded text-center transition-colors"
+                >
+                  ✏️ Düzenle
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleArchiveTerm(term.id, term.name, term.isActive)
+                  }}
+                  className={`flex-1 text-white text-sm py-2 px-3 rounded transition-colors ${
+                    term.isActive
+                      ? 'bg-orange-500 hover:bg-orange-600'
+                      : 'bg-green-500 hover:bg-green-600'
+                  }`}
+                >
+                  {term.isActive ? '📦 Arşivle' : '📂 Arşivden Çıkar'}
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDeleteTerm(term.id, term.name)
+                  }}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors"
+                >
+                  🗑️ Sil
+                </button>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
