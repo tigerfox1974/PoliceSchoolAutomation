@@ -111,7 +111,7 @@ export default function ConfirmDialog({
                   onConfirm()
                   onClose()
                 }}
-                className={`flex-1 px-4 py-2 ${typeColors[type]} text-white rounded-lg transition-colors`}
+                className={`flex-1 px-4 py-2 rounded-lg font-semibold text-white shadow-md transition-colors ${typeColors[type]}`}
               >
                 {confirmText}
               </button>
