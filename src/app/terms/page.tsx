@@ -66,7 +66,10 @@ export default function TermsPage() {
   const [showFilterModal, setShowFilterModal] = useState(false)
   const [filters, setFilters] = useState({
     termType: [] as string[],
+    status: [] as string[],
     duration: [] as string[],
+    dateFrom: '',
+    dateTo: '',
   })
   const [filteredTerms, setFilteredTerms] = useState<Term[]>([])
 
@@ -94,9 +97,29 @@ export default function TermsPage() {
       result = result.filter((term) => filters.termType.includes(term.termType))
     }
 
+    // Status filter
+    if (filters.status.length > 0) {
+      result = result.filter((term) => filters.status.includes(term.status))
+    }
+
     // Duration filter
     if (filters.duration.length > 0) {
       result = result.filter((term) => filters.duration.includes(term.duration))
+    }
+
+    // Date range filter (overlap)
+    if (filters.dateFrom || filters.dateTo) {
+      const from = filters.dateFrom ? new Date(filters.dateFrom) : null
+      const to = filters.dateTo ? new Date(filters.dateTo) : null
+
+      result = result.filter((term) => {
+        const termStart = new Date(term.startDate)
+        const termEnd = new Date(term.endDate)
+
+        if (from && termEnd < from) return false
+        if (to && termStart > to) return false
+        return true
+      })
     }
 
     setFilteredTerms(result)
@@ -228,7 +251,10 @@ export default function TermsPage() {
     setSearchQuery('')
     setFilters({
       termType: [],
+      status: [],
       duration: [],
+      dateFrom: '',
+      dateTo: '',
     })
   }
 
@@ -541,16 +567,31 @@ export default function TermsPage() {
               <button
                 onClick={() => setShowFilterModal(true)}
                 className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                  filters.termType.length > 0 || filters.duration.length > 0
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  filters.termType.length > 0 ||
+                  filters.status.length > 0 ||
+                  filters.duration.length > 0 ||
+                  !!filters.dateFrom ||
+                  !!filters.dateTo
+                    ? 'bg-orange-500 text-white hover:bg-orange-600'
                     : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
                 }`}
               >
                 <Icon icon="ph:funnel-bold" width="20" />
                 Filtreler
-                {(filters.termType.length > 0 || filters.duration.length > 0) && (
+                {(filters.termType.length > 0 ||
+                  filters.status.length > 0 ||
+                  filters.duration.length > 0 ||
+                  !!filters.dateFrom ||
+                  !!filters.dateTo) && (
                   <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
-                    {[filters.termType.length, filters.duration.length].filter((n) => n > 0).length}
+                    {
+                      [
+                        filters.termType.length,
+                        filters.status.length,
+                        filters.duration.length,
+                        (filters.dateFrom || filters.dateTo) ? 1 : 0,
+                      ].filter((n) => n > 0).length
+                    }
                   </span>
                 )}
               </button>
@@ -566,13 +607,18 @@ export default function TermsPage() {
                 <option value="status">🎯 Duruma Göre</option>
               </select>
 
-              {(searchQuery || filters.termType.length > 0 || filters.duration.length > 0) && (
+              {(searchQuery ||
+                filters.termType.length > 0 ||
+                filters.status.length > 0 ||
+                filters.duration.length > 0 ||
+                !!filters.dateFrom ||
+                !!filters.dateTo) && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600 dark:text-gray-400">
                     {sortedAndFilteredTerms.length} dönem bulundu
                   </span>
                   <button onClick={clearFilters} className="text-sm text-blue-600 hover:underline">
-                    Temizle
+                    Tümünü Temizle
                   </button>
                 </div>
               )}
@@ -907,6 +953,37 @@ export default function TermsPage() {
                 </div>
               </div>
 
+              {/* Status Filter */}
+              <div className="mb-6">
+                <label className="block mb-3 font-semibold">🎯 Durum</label>
+                <div className="space-y-2">
+                  {[
+                    { value: 'ACTIVE', label: 'Aktif' },
+                    { value: 'PAUSED', label: 'Pasif / Duraklatıldı' },
+                    { value: 'ARCHIVED', label: 'Arşiv' },
+                  ].map((s) => (
+                    <label
+                      key={s.value}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.status.includes(s.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFilters({ ...filters, status: [...filters.status, s.value] })
+                          } else {
+                            setFilters({ ...filters, status: filters.status.filter(st => st !== s.value) })
+                          }
+                        }}
+                        className="w-5 h-5 rounded"
+                      />
+                      <span className="font-medium">{s.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Duration Filter */}
               <div className="mb-6">
                 <label className="block mb-3 font-semibold">⏱️ Kurs Süresi</label>
@@ -935,6 +1012,34 @@ export default function TermsPage() {
                     </label>
                   ))}
                 </div>
+              </div>
+
+              {/* Date Range Filter */}
+              <div className="mb-6">
+                <label className="block mb-3 font-semibold">📅 Tarih Aralığı</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block mb-2 text-sm text-gray-600 dark:text-gray-400">Başlangıç</label>
+                    <input
+                      type="date"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                      className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm text-gray-600 dark:text-gray-400">Bitiş</label>
+                    <input
+                      type="date"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                      className="w-full px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  Seçilen aralıkla kesişen dönemler listelenir.
+                </p>
               </div>
 
               {/* Action Buttons */}
