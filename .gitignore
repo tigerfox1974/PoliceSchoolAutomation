@@ -28,3 +28,6 @@ dist
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local backups
+*.backup
