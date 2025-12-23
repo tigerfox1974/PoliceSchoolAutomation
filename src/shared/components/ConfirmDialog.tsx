@@ -69,9 +69,12 @@ export default function ConfirmDialog({
       {/* Dialog */}
       <div className="flex w-full items-center justify-center">
         <div
-          className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-lg shadow-xl transform transition-all"
+          className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl transform transition-all"
           onClick={(e) => e.stopPropagation()}
-          style={{ pointerEvents: 'auto' }}
+          style={{
+            pointerEvents: 'auto',
+            width: 'min(560px, 92vw)',
+          }}
         >
           <div className="p-6">
             {/* Icon */}
