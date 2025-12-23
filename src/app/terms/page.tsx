@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-import { Modal, ConfirmDialog } from '@/shared/components'
+import { Modal, ConfirmDialog, ToastContainer } from '@/shared/components'
 
 interface Term {
   id: string
@@ -76,6 +76,22 @@ export default function TermsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name' | 'status'>('newest')
   const [sortedAndFilteredTerms, setSortedAndFilteredTerms] = useState<Term[]>([])
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<Array<{
+    id: string
+    message: string
+    type: 'success' | 'error' | 'info' | 'warning'
+  }>>([])
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    const id = Date.now().toString()
+    setToasts(prev => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   // Apply search and filters
   useEffect(() => {
@@ -236,13 +252,14 @@ export default function TermsPage() {
         setStartDate('')
         setEndDate('')
         setCurrentTermNumber(0)
+        showToast('Dönem başarıyla oluşturuldu', 'success')
       } else {
         const error = await res.json()
-        alert(error.error || 'Dönem oluşturulamadı')
+        showToast(error.error || 'Dönem oluşturulamadı', 'error')
       }
     } catch (error) {
       console.error('Dönem oluşturma hatası:', error)
-      alert('Sunucu hatası')
+      showToast('Sunucu hatası', 'error')
     }
   }
 
@@ -285,14 +302,14 @@ export default function TermsPage() {
         setShowEditModal(false)
         setEditingTerm(null)
         fetchTerms()
-        alert('Dönem başarıyla güncellendi')
+        showToast('Dönem başarıyla güncellendi', 'success')
       } else {
         const error = await res.json()
-        alert(error.error || 'Dönem güncellenemedi')
+        showToast(error.error || 'Dönem güncellenemedi', 'error')
       }
     } catch (error) {
       console.error('Edit error:', error)
-      alert('Sunucu hatası')
+      showToast('Sunucu hatası', 'error')
     }
   }
 
@@ -324,14 +341,14 @@ export default function TermsPage() {
 
           if (res.ok) {
             fetchTerms()
-            alert(`Dönem ${statusLabels[newStatus].toLowerCase()} olarak işaretlendi`)
+            showToast(`Dönem ${statusLabels[newStatus].toLowerCase()} olarak işaretlendi`, 'success')
           } else {
             const error = await res.json()
-            alert(error.error || 'İşlem başarısız')
+            showToast(error.error || 'İşlem başarısız', 'error')
           }
         } catch (error) {
           console.error('Status change error:', error)
-          alert('Sunucu hatası')
+          showToast('Sunucu hatası', 'error')
         }
       },
     })
@@ -382,14 +399,14 @@ export default function TermsPage() {
 
       if (res.ok) {
         fetchTerms()
-        alert('Dönem başarıyla silindi')
+        showToast('Dönem başarıyla silindi', 'success')
       } else {
         const error = await res.json()
-        alert(error.error || 'Dönem silinemedi')
+        showToast(error.error || 'Dönem silinemedi', 'error')
       }
     } catch (error) {
       console.error('Dönem silme hatası:', error)
-      alert('Sunucu hatası')
+      showToast('Sunucu hatası', 'error')
     }
   }
 
@@ -403,6 +420,11 @@ export default function TermsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Toast Notifications */}
+      <ToastContainer 
+        toasts={toasts.map(toast => ({ ...toast, onClose: removeToast }))} 
+      />
+
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">🎓 Dönem Yönetimi</h1>
         <button
