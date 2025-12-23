@@ -35,7 +35,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     >
       {/* Backdrop */}
       <div
-        className="bg-black bg-opacity-50 transition-opacity"
+        className="bg-black bg-opacity-50 transition-opacity backdrop-blur-sm"
         style={{ position: 'fixed', inset: 0 }}
         onClick={onClose}
       />

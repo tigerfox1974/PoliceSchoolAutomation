@@ -61,7 +61,7 @@ export default function ConfirmDialog({
     >
       {/* Backdrop */}
       <div
-        className="bg-black bg-opacity-50 transition-opacity"
+        className="bg-black bg-opacity-50 transition-opacity backdrop-blur-sm"
         style={{ position: 'fixed', inset: 0 }}
         onClick={onClose}
       />
