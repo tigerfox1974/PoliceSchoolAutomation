@@ -1,5 +1,8 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+
 interface ConfirmDialogProps {
   isOpen: boolean
   onClose: () => void
@@ -21,7 +24,14 @@ export default function ConfirmDialog({
   cancelText = 'İptal',
   type = 'warning',
 }: ConfirmDialogProps) {
-  if (!isOpen) return null
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+
+  if (!isOpen || !mounted) return null
 
   const typeColors = {
     danger: 'bg-red-600 hover:bg-red-700',
@@ -35,8 +45,8 @@ export default function ConfirmDialog({
     info: 'ℹ️',
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+  const dialogContent = (
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
@@ -88,4 +98,6 @@ export default function ConfirmDialog({
       </div>
     </div>
   )
+
+  return createPortal(dialogContent, document.body)
 }
