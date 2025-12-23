@@ -35,8 +35,14 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     >
       {/* Backdrop */}
       <div
-        className="bg-black bg-opacity-50 transition-opacity backdrop-blur-sm"
-        style={{ position: 'fixed', inset: 0 }}
+        className="transition-opacity"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
         onClick={onClose}
       />
       
