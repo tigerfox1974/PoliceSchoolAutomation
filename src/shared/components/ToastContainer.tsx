@@ -2,7 +2,16 @@
 
 import Toast, { ToastProps } from './Toast'
 
-export default function ToastContainer({ toasts }: { toasts: Omit<ToastProps, 'onClose'>[] & { onClose: (id: string) => void }[] }) {
+interface ToastContainerProps {
+  toasts: Array<{
+    id: string
+    message: string
+    type: 'success' | 'error' | 'info' | 'warning'
+    onClose: (id: string) => void
+  }>
+}
+
+export default function ToastContainer({ toasts }: ToastContainerProps) {
   if (toasts.length === 0) return null
 
   return (
