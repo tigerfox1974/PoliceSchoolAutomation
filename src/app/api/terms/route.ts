@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         duration,
         startDate: new Date(startDate),
         endDate: calculatedEndDate,
-        isActive: data.isActive ?? false,
+        status: 'ACTIVE', // Yeni dönemler varsayılan olarak aktif
         description: data.description,
       },
     })

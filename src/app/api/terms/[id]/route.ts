@@ -57,12 +57,30 @@ export async function PATCH(
   try {
     const data = await request.json()
 
+    // Dönem kodu ve adını otomatik oluştur
+    let termCode = data.termCode
+    let name = data.name
+
+    if (data.termNumber && data.termType) {
+      const typePrefix = data.termType === 'POLICE' ? 'PTE' : 'İTE'
+      const paddedNumber = String(data.termNumber).padStart(2, '0')
+      termCode = `${typePrefix}-${paddedNumber}`
+
+      const typeName = data.termType === 'POLICE' ? 'Polis Temel Eğitimi' : 'İtfaiye Temel Eğitimi'
+      name = `${data.termNumber}. ${typeName}`
+    }
+
     const term = await prisma.term.update({
       where: { id: params.id },
       data: {
-        ...data,
+        termNumber: data.termNumber,
+        termType: data.termType,
+        termCode,
+        name,
+        duration: data.duration,
         startDate: data.startDate ? new Date(data.startDate) : undefined,
         endDate: data.endDate ? new Date(data.endDate) : undefined,
+        status: data.status,
       },
     })
 

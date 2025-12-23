@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { Icon } from '@iconify/react'
+import Modal from '@/components/Modal'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface Term {
   id: string
@@ -12,7 +15,7 @@ interface Term {
   duration: 'FOUR_MONTHS' | 'SIX_MONTHS'
   startDate: string
   endDate: string
-  isActive: boolean
+  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED'
   _count: {
     students: number
     classes: number
@@ -30,6 +33,69 @@ export default function TermsPage() {
   const [selectedDuration, setSelectedDuration] = useState<'FOUR_MONTHS' | 'SIX_MONTHS'>('FOUR_MONTHS')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingTerm, setEditingTerm] = useState<Term | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    termNumber: 0,
+    termType: 'POLICE' as 'POLICE' | 'FIRE',
+    duration: 'FOUR_MONTHS' as 'FOUR_MONTHS' | 'SIX_MONTHS',
+    startDate: '',
+    endDate: '',
+    status: 'ACTIVE' as 'ACTIVE' | 'PAUSED' | 'ARCHIVED',
+  })
+
+  // Confirm dialog states
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type: 'danger' | 'warning' | 'info'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  })
+
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showFilterModal, setShowFilterModal] = useState(false)
+  const [filters, setFilters] = useState({
+    termType: [] as string[],
+    duration: [] as string[],
+  })
+  const [filteredTerms, setFilteredTerms] = useState<Term[]>([])
+
+  // Apply search and filters
+  useEffect(() => {
+    let result = [...terms]
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter((term) =>
+        term.name.toLowerCase().includes(query) ||
+        term.termCode.toLowerCase().includes(query) ||
+        term.termNumber.toString().includes(query)
+      )
+    }
+
+    // Type filter
+    if (filters.termType.length > 0) {
+      result = result.filter((term) => filters.termType.includes(term.termType))
+    }
+
+    // Duration filter
+    if (filters.duration.length > 0) {
+      result = result.filter((term) => filters.duration.includes(term.duration))
+    }
+
+    setFilteredTerms(result)
+  }, [terms, searchQuery, filters])
 
   useEffect(() => {
     fetchTerms()
@@ -130,11 +196,132 @@ export default function TermsPage() {
     }
   }
 
-  const handleDeleteTerm = async (termId: string, termName: string) => {
-    if (!confirm(`"${termName}" dönemini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve tüm ilişkili veriler silinecektir.`)) {
-      return
+  const clearFilters = () => {
+    setSearchQuery('')
+    setFilters({
+      termType: [],
+      duration: [],
+    })
+  }
+
+  const handleEditClick = (term: Term) => {
+    setEditingTerm(term)
+    setEditFormData({
+      termNumber: term.termNumber,
+      termType: term.termType,
+      duration: term.duration,
+      startDate: term.startDate.split('T')[0],
+      endDate: term.endDate.split('T')[0],
+      status: term.status,
+    })
+    setShowEditModal(true)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingTerm) return
+
+    try {
+      const res = await fetch(`/api/terms/${editingTerm.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      })
+
+      if (res.ok) {
+        setShowEditModal(false)
+        setEditingTerm(null)
+        fetchTerms()
+        alert('Dönem başarıyla güncellendi')
+      } else {
+        const error = await res.json()
+        alert(error.error || 'Dönem güncellenemedi')
+      }
+    } catch (error) {
+      console.error('Edit error:', error)
+      alert('Sunucu hatası')
+    }
+  }
+
+  const handleStatusChange = async (termId: string, termName: string, newStatus: 'ACTIVE' | 'PAUSED' | 'ARCHIVED') => {
+    const statusLabels = {
+      ACTIVE: 'Aktif',
+      PAUSED: 'Duraklatılmış',
+      ARCHIVED: 'Arşivlenmiş',
     }
 
+    const statusActions = {
+      ACTIVE: 'aktif hale getirmek',
+      PAUSED: 'duraklatmak',
+      ARCHIVED: 'arşivlemek',
+    }
+
+    setConfirmDialog({
+      isOpen: true,
+      title: `Dönem Durumunu ${statusLabels[newStatus]} Yap`,
+      message: `"${termName}" dönemini ${statusActions[newStatus]} istediğinizden emin misiniz?`,
+      type: newStatus === 'ARCHIVED' ? 'warning' : 'info',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/terms/${termId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+          })
+
+          if (res.ok) {
+            fetchTerms()
+            alert(`Dönem ${statusLabels[newStatus].toLowerCase()} olarak işaretlendi`)
+          } else {
+            const error = await res.json()
+            alert(error.error || 'İşlem başarısız')
+          }
+        } catch (error) {
+          console.error('Status change error:', error)
+          alert('Sunucu hatası')
+        }
+      },
+    })
+  }
+
+  const handleDeleteTerm = async (term: Term) => {
+    // ACTIVE dönemler için ekstra uyarı göster
+    if (term.status === 'ACTIVE') {
+      setConfirmDialog({
+        isOpen: true,
+        title: '⚠️ Aktif Dönem Silme Uyarısı',
+        message: `"${term.name}" dönemi AKTİF durumda!\n\nBu dönemi silmek istediğinizden emin misiniz?`,
+        type: 'danger',
+        onConfirm: () => {
+          // İlk onay sonrası ikinci onay
+          setTimeout(() => {
+            setConfirmDialog({
+              isOpen: true,
+              title: '🗑️ Silme İşlemini Onayla',
+              message: `Bu işlem geri alınamaz!\n\n"${term.name}" dönemi ve tüm ilişkili veriler kalıcı olarak silinecektir.`,
+              type: 'danger',
+              onConfirm: async () => {
+                await performDelete(term.id, term.name)
+              },
+            })
+          }, 150)
+        },
+      })
+    } else {
+      // Aktif olmayan dönemler için tek onay
+      setConfirmDialog({
+        isOpen: true,
+        title: '🗑️ Dönemi Sil',
+        message: `"${term.name}" dönemini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz!`,
+        type: 'danger',
+        onConfirm: async () => {
+          await performDelete(term.id, term.name)
+        },
+      })
+    }
+  }
+
+  const performDelete = async (termId: string, termName: string) => {
     try {
       const res = await fetch(`/api/terms/${termId}`, {
         method: 'DELETE',
@@ -149,32 +336,6 @@ export default function TermsPage() {
       }
     } catch (error) {
       console.error('Dönem silme hatası:', error)
-      alert('Sunucu hatası')
-    }
-  }
-
-  const handleArchiveTerm = async (termId: string, termName: string, isCurrentlyActive: boolean) => {
-    const action = isCurrentlyActive ? 'arşivlemek' : 'arşivden çıkarmak'
-    if (!confirm(`"${termName}" dönemini ${action} istediğinizden emin misiniz?`)) {
-      return
-    }
-
-    try {
-      const res = await fetch(`/api/terms/${termId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !isCurrentlyActive }),
-      })
-
-      if (res.ok) {
-        fetchTerms()
-        alert(`Dönem başarıyla ${isCurrentlyActive ? 'arşivlendi' : 'arşivden çıkarıldı'}`)
-      } else {
-        const error = await res.json()
-        alert(error.error || 'İşlem başarısız')
-      }
-    } catch (error) {
-      console.error('Arşivleme hatası:', error)
       alert('Sunucu hatası')
     }
   }
@@ -302,11 +463,11 @@ export default function TermsPage() {
             <div className="flex items-center">
               <input
                 type="checkbox"
-                name="isActive"
-                id="isActive"
+                name="status"
+                id="status"
                 className="mr-2"
               />
-              <label htmlFor="isActive">Aktif Dönem</label>
+              <label htmlFor="status">Aktif Dönem Olarak Başlat</label>
             </div>
 
             <button
@@ -316,6 +477,69 @@ export default function TermsPage() {
               Dönem Oluştur
             </button>
           </form>
+        </div>
+      )}
+
+      {/* Search and Filter Bar */}
+      {terms.length > 0 && (
+        <div className="mb-6 space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Icon 
+              icon="ph:magnifying-glass-bold" 
+              width="20" 
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Dönem adı, kodu veya numarası ara..."
+              className="w-full pl-10 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <Icon icon="ph:x-bold" width="18" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Button and Active Filters */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => setShowFilterModal(true)}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                filters.termType.length > 0 || filters.duration.length > 0
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              <Icon icon="ph:funnel-bold" width="20" />
+              Filtreler
+              {(filters.termType.length > 0 || filters.duration.length > 0) && (
+                <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                  {[filters.termType.length, filters.duration.length].filter(n => n > 0).length}
+                </span>
+              )}
+            </button>
+
+            {(searchQuery || filters.termType.length > 0 || filters.duration.length > 0) && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {filteredTerms.length} dönem bulundu
+                </span>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  Temizle
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -330,7 +554,25 @@ export default function TermsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {terms.map((term) => (
+          {filteredTerms.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
+              <Icon icon="ph:magnifying-glass-bold" width="64" className="mx-auto mb-4 text-gray-400" />
+              <p className="text-xl text-gray-600 dark:text-gray-400 mb-2">
+                Arama kriterlerine uygun dönem bulunamadı
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-500">
+                Farklı arama terimleri veya filtreler deneyin
+              </p>
+            </div>
+          ) : (
+            filteredTerms.map((term) => {
+              const statusConfig = {
+                ACTIVE: { label: 'Aktif', color: 'bg-green-500', icon: '✓' },
+                PAUSED: { label: 'Duraklatıldı', color: 'bg-orange-500', icon: '⏸' },
+                ARCHIVED: { label: 'Arşivlendi', color: 'bg-gray-500', icon: '📦' },
+              }[term.status]
+
+              return (
             <div
               key={term.id}
               className="bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6 relative"
@@ -346,11 +588,10 @@ export default function TermsPage() {
                       {term.termCode}
                     </p>
                   </div>
-                  {term.isActive && (
-                    <span className="bg-green-500 text-white text-xs px-2 py-1 rounded">
-                      Aktif
-                    </span>
-                  )}
+                  <span className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1`}>
+                    <span>{statusConfig.icon}</span>
+                    <span>{statusConfig.label}</span>
+                  </span>
                 </div>
 
                 <div className="space-y-2 text-sm">
@@ -372,46 +613,312 @@ export default function TermsPage() {
                 </div>
               </Link>
 
-              <div className="flex gap-2 mt-4 pt-4 border-t">
-                <Link
-                  href={`/terms/${term.id}/edit`}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    alert('Düzenleme özelliği yakında eklenecek')
-                  }}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded text-center transition-colors"
-                >
-                  ✏️ Düzenle
-                </Link>
+              <div className="mt-4 pt-4 border-t space-y-2">
+                {/* Action Buttons Row 1: Edit, Status */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleEditClick(term)
+                    }}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Icon icon="ph:pencil-bold" width="16" />
+                    Düzenle
+                  </button>
+                  
+                  {term.status === 'ACTIVE' && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleStatusChange(term.id, term.name, 'PAUSED')
+                      }}
+                      className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Icon icon="ph:pause-bold" width="16" />
+                      Duraklat
+                    </button>
+                  )}
+                  
+                  {term.status === 'PAUSED' && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleStatusChange(term.id, term.name, 'ACTIVE')
+                      }}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Icon icon="ph:play-bold" width="16" />
+                      Aktifleştir
+                    </button>
+                  )}
+                  
+                  {term.status === 'ARCHIVED' && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleStatusChange(term.id, term.name, 'ACTIVE')
+                      }}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Icon icon="ph:arrow-counter-clockwise-bold" width="16" />
+                      Geri Al
+                    </button>
+                  )}
+                </div>
+
+                {/* Action Buttons Row 2: Archive/Delete */}
+                <div className="flex gap-2">
+                  {term.status !== 'ARCHIVED' && (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleStatusChange(term.id, term.name, 'ARCHIVED')
+                      }}
+                      className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Icon icon="ph:archive-bold" width="16" />
+                      Arşivle
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleDeleteTerm(term)
+                    }}
+                    className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                  >
+                    <Icon icon="ph:trash-bold" width="16" />
+                    Sil
+                  </button>
+                </div>
+              </div>
+            </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold">🔍 Filtreler</h3>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleArchiveTerm(term.id, term.name, term.isActive)
-                  }}
-                  className={`flex-1 text-white text-sm py-2 px-3 rounded transition-colors ${
-                    term.isActive
-                      ? 'bg-orange-500 hover:bg-orange-600'
-                      : 'bg-green-500 hover:bg-green-600'
-                  }`}
+                  onClick={() => setShowFilterModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
                 >
-                  {term.isActive ? '📦 Arşivle' : '📂 Arşivden Çıkar'}
+                  <Icon icon="ph:x-bold" width="24" />
+                </button>
+              </div>
+
+              {/* Term Type Filter */}
+              <div className="mb-6">
+                <label className="block mb-3 font-semibold">🚔 Dönem Tipi</label>
+                <div className="space-y-2">
+                  {[
+                    { value: 'POLICE', label: 'Polis Temel Eğitimi' },
+                    { value: 'FIRE', label: 'İtfaiye Temel Eğitimi' },
+                  ].map((type) => (
+                    <label
+                      key={type.value}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.termType.includes(type.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFilters({ ...filters, termType: [...filters.termType, type.value] })
+                          } else {
+                            setFilters({ ...filters, termType: filters.termType.filter(t => t !== type.value) })
+                          }
+                        }}
+                        className="w-5 h-5 rounded"
+                      />
+                      <span className="font-medium">{type.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Duration Filter */}
+              <div className="mb-6">
+                <label className="block mb-3 font-semibold">⏱️ Kurs Süresi</label>
+                <div className="space-y-2">
+                  {[
+                    { value: 'FOUR_MONTHS', label: '4 Ay' },
+                    { value: 'SIX_MONTHS', label: '6 Ay' },
+                  ].map((duration) => (
+                    <label
+                      key={duration.value}
+                      className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={filters.duration.includes(duration.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFilters({ ...filters, duration: [...filters.duration, duration.value] })
+                          } else {
+                            setFilters({ ...filters, duration: filters.duration.filter(d => d !== duration.value) })
+                          }
+                        }}
+                        className="w-5 h-5 rounded"
+                      />
+                      <span className="font-medium">{duration.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t dark:border-gray-700">
+                <button
+                  onClick={() => {
+                    clearFilters()
+                    setShowFilterModal(false)
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg"
+                >
+                  Temizle
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleDeleteTerm(term.id, term.name)
-                  }}
-                  className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors"
+                  onClick={() => setShowFilterModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
                 >
-                  🗑️ Sil
+                  Uygula
                 </button>
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingTerm(null)
+        }}
+        title="✏️ Dönemi Düzenle"
+        size="lg"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-2 font-medium">Dönem Tipi</label>
+            <select
+              value={editFormData.termType}
+              onChange={(e) => setEditFormData({ ...editFormData, termType: e.target.value as 'POLICE' | 'FIRE' })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="POLICE">Polis Temel Eğitimi</option>
+              <option value="FIRE">İtfaiye Temel Eğitimi</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Dönem Numarası</label>
+            <input
+              type="number"
+              min="1"
+              required
+              value={editFormData.termNumber}
+              onChange={(e) => setEditFormData({ ...editFormData, termNumber: parseInt(e.target.value) || 0 })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Kurs Süresi</label>
+            <select
+              value={editFormData.duration}
+              onChange={(e) => setEditFormData({ ...editFormData, duration: e.target.value as 'FOUR_MONTHS' | 'SIX_MONTHS' })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="FOUR_MONTHS">4 Ay</option>
+              <option value="SIX_MONTHS">6 Ay</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2 font-medium">Başlangıç Tarihi</label>
+              <input
+                type="date"
+                required
+                value={editFormData.startDate}
+                onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+            
+            <div>
+              <label className="block mb-2 font-medium">Bitiş Tarihi</label>
+              <input
+                type="date"
+                required
+                value={editFormData.endDate}
+                onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
+                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Durum</label>
+            <select
+              value={editFormData.status}
+              onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as 'ACTIVE' | 'PAUSED' | 'ARCHIVED' })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="ACTIVE">✓ Aktif</option>
+              <option value="PAUSED">⏸ Duraklatıldı</option>
+              <option value="ARCHIVED">📦 Arşivlendi</option>
+            </select>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditModal(false)
+                setEditingTerm(null)
+              }}
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+            >
+              Kaydet
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+      />
     </div>
   )
 }

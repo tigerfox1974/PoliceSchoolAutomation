@@ -53,6 +53,13 @@ enum TermDuration {
   SIX_MONTHS   // 6 Ay
 }
 
+// Dönem Durumu
+enum TermStatus {
+  ACTIVE    // Aktif - Devam eden canlı kurs
+  PAUSED    // Pasif - Durdurulmuş, süre dolmamış
+  ARCHIVED  // Arşivde - Manuel arşivlenmiş
+}
+
 // Ders Tipi
 enum CourseType {
   STANDARD   // Standart Ders (Haftalık düzenli)
@@ -194,7 +201,7 @@ model Term {
   duration     TermDuration // FOUR_MONTHS veya SIX_MONTHS
   startDate    DateTime
   endDate      DateTime
-  isActive     Boolean      @default(true)
+  status       TermStatus   @default(ACTIVE) // ACTIVE, PAUSED, ARCHIVED
   description  String?
 
   // Soft delete
