@@ -29,10 +29,14 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
   }
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto">
+    <div
+      className="overflow-y-auto"
+      style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
+    >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="bg-black bg-opacity-50 transition-opacity"
+        style={{ position: 'fixed', inset: 0 }}
         onClick={onClose}
       />
       
