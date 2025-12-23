@@ -1,7 +1,6 @@
 'use client'
 
-import { ReactNode, useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { ReactNode } from 'react'
 
 interface ModalProps {
   isOpen: boolean
@@ -12,14 +11,7 @@ interface ModalProps {
 }
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-    return () => setMounted(false)
-  }, [])
-
-  if (!isOpen || !mounted) return null
+  if (!isOpen) return null
 
   const sizeClasses = {
     sm: 'max-w-md',
@@ -28,7 +20,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     xl: 'max-w-6xl',
   }
 
-  const modalContent = (
+  return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
@@ -61,6 +53,4 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
       </div>
     </div>
   )
-
-  return createPortal(modalContent, document.body)
 }
