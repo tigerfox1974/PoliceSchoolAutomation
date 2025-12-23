@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-import Modal from '@/components/Modal'
-import ConfirmDialog from '@/components/ConfirmDialog'
+import { Modal, ConfirmDialog } from '@/shared/components'
 
 interface Term {
   id: string
