@@ -70,6 +70,11 @@ export default function TermsPage() {
   })
   const [filteredTerms, setFilteredTerms] = useState<Term[]>([])
 
+  // View and sort states
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name' | 'status'>('newest')
+  const [sortedAndFilteredTerms, setSortedAndFilteredTerms] = useState<Term[]>([])
+
   // Apply search and filters
   useEffect(() => {
     let result = [...terms]
@@ -96,6 +101,29 @@ export default function TermsPage() {
 
     setFilteredTerms(result)
   }, [terms, searchQuery, filters])
+
+  // Apply sorting
+  useEffect(() => {
+    let result = [...filteredTerms]
+
+    switch (sortBy) {
+      case 'newest':
+        result.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+        break
+      case 'oldest':
+        result.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+        break
+      case 'name':
+        result.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+        break
+      case 'status':
+        const statusOrder = { ACTIVE: 0, PAUSED: 1, ARCHIVED: 2 }
+        result.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+        break
+    }
+
+    setSortedAndFilteredTerms(result)
+  }, [filteredTerms, sortBy])
 
   useEffect(() => {
     fetchTerms()
@@ -508,37 +536,72 @@ export default function TermsPage() {
           </div>
 
           {/* Filter Button and Active Filters */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={() => setShowFilterModal(true)}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                filters.termType.length > 0 || filters.duration.length > 0
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
-              }`}
-            >
-              <Icon icon="ph:funnel-bold" width="20" />
-              Filtreler
-              {(filters.termType.length > 0 || filters.duration.length > 0) && (
-                <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
-                  {[filters.termType.length, filters.duration.length].filter(n => n > 0).length}
-                </span>
-              )}
-            </button>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => setShowFilterModal(true)}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  filters.termType.length > 0 || filters.duration.length > 0
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                <Icon icon="ph:funnel-bold" width="20" />
+                Filtreler
+                {(filters.termType.length > 0 || filters.duration.length > 0) && (
+                  <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
+                    {[filters.termType.length, filters.duration.length].filter((n) => n > 0).length}
+                  </span>
+                )}
+              </button>
 
-            {(searchQuery || filters.termType.length > 0 || filters.duration.length > 0) && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {filteredTerms.length} dönem bulundu
-                </span>
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  Temizle
-                </button>
-              </div>
-            )}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'name' | 'status')}
+                className="px-4 py-2 rounded-lg border dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors cursor-pointer"
+              >
+                <option value="newest">📅 En Yeni</option>
+                <option value="oldest">📅 En Eski</option>
+                <option value="name">🔤 İsme Göre</option>
+                <option value="status">🎯 Duruma Göre</option>
+              </select>
+
+              {(searchQuery || filters.termType.length > 0 || filters.duration.length > 0) && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {sortedAndFilteredTerms.length} dönem bulundu
+                  </span>
+                  <button onClick={clearFilters} className="text-sm text-blue-600 hover:underline">
+                    Temizle
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-700 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                <Icon icon="ph:squares-four-bold" width="18" />
+                <span className="text-sm font-medium">Kart</span>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                <Icon icon="ph:list-bold" width="18" />
+                <span className="text-sm font-medium">Liste</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -552,159 +615,251 @@ export default function TermsPage() {
             Sistemi kullanmaya başlamak için önce bir dönem oluşturun
           </p>
         </div>
+      ) : sortedAndFilteredTerms.length === 0 ? (
+        <div className="text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <Icon icon="ph:magnifying-glass-bold" width="64" className="mx-auto mb-4 text-gray-400" />
+          <p className="text-xl text-gray-600 dark:text-gray-400 mb-2">
+            Arama kriterlerine uygun dönem bulunamadı
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-500">
+            Farklı arama terimleri veya filtreler deneyin
+          </p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTerms.length === 0 ? (
-            <div className="col-span-full text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <Icon icon="ph:magnifying-glass-bold" width="64" className="mx-auto mb-4 text-gray-400" />
-              <p className="text-xl text-gray-600 dark:text-gray-400 mb-2">
-                Arama kriterlerine uygun dönem bulunamadı
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-500">
-                Farklı arama terimleri veya filtreler deneyin
-              </p>
+        <>
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sortedAndFilteredTerms.map((term) => {
+                const statusConfig = {
+                  ACTIVE: { label: 'Aktif', color: 'bg-green-500', icon: '✓' },
+                  PAUSED: { label: 'Duraklatıldı', color: 'bg-orange-500', icon: '⏸' },
+                  ARCHIVED: { label: 'Arşivlendi', color: 'bg-gray-500', icon: '📦' },
+                }[term.status]
+
+                return (
+                  <div
+                    key={term.id}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6 relative"
+                  >
+                    <Link href={`/terms/${term.id}`} className="block">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-xl font-bold">{term.name}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{term.termCode}</p>
+                        </div>
+                        <span
+                          className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1`}
+                        >
+                          <span>{statusConfig.icon}</span>
+                          <span>{statusConfig.label}</span>
+                        </span>
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        <p>
+                          {term.termType === 'POLICE' ? '🚔' : '🚒'}{' '}
+                          {term.termType === 'POLICE' ? 'Polis Eğitimi' : 'İtfaiye Eğitimi'}
+                        </p>
+                        <p>⏱️ Süre: {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}</p>
+                        <p>
+                          📅 {new Date(term.startDate).toLocaleDateString('tr-TR')} -{' '}
+                          {new Date(term.endDate).toLocaleDateString('tr-TR')}
+                        </p>
+                        <div className="flex justify-between pt-4 border-t">
+                          <span>👨‍🎓 {term._count.students}</span>
+                          <span>🏫 {term._count.classes}</span>
+                          <span>👨‍🏫 {term._count.instructorTerms}</span>
+                        </div>
+                      </div>
+                    </Link>
+
+                    <div className="mt-4 pt-4 border-t space-y-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleEditClick(term)
+                          }}
+                          className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Icon icon="ph:pencil-bold" width="16" />
+                          Düzenle
+                        </button>
+
+                        {term.status === 'ACTIVE' && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleStatusChange(term.id, term.name, 'PAUSED')
+                            }}
+                            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Icon icon="ph:pause-bold" width="16" />
+                            Duraklat
+                          </button>
+                        )}
+
+                        {term.status === 'PAUSED' && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleStatusChange(term.id, term.name, 'ACTIVE')
+                            }}
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Icon icon="ph:play-bold" width="16" />
+                            Aktifleştir
+                          </button>
+                        )}
+
+                        {term.status === 'ARCHIVED' && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleStatusChange(term.id, term.name, 'ACTIVE')
+                            }}
+                            className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Icon icon="ph:arrow-counter-clockwise-bold" width="16" />
+                            Geri Al
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        {term.status !== 'ARCHIVED' && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleStatusChange(term.id, term.name, 'ARCHIVED')
+                            }}
+                            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Icon icon="ph:archive-bold" width="16" />
+                            Arşivle
+                          </button>
+                        )}
+
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleDeleteTerm(term)
+                          }}
+                          className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Icon icon="ph:trash-bold" width="16" />
+                          Sil
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           ) : (
-            filteredTerms.map((term) => {
-              const statusConfig = {
-                ACTIVE: { label: 'Aktif', color: 'bg-green-500', icon: '✓' },
-                PAUSED: { label: 'Duraklatıldı', color: 'bg-orange-500', icon: '⏸' },
-                ARCHIVED: { label: 'Arşivlendi', color: 'bg-gray-500', icon: '📦' },
-              }[term.status]
+            <div className="space-y-4">
+              {sortedAndFilteredTerms.map((term) => {
+                const statusConfig = {
+                  ACTIVE: { label: 'Aktif', color: 'bg-green-500', icon: '✓' },
+                  PAUSED: { label: 'Duraklatıldı', color: 'bg-orange-500', icon: '⏸' },
+                  ARCHIVED: { label: 'Arşivlendi', color: 'bg-gray-500', icon: '📦' },
+                }[term.status]
 
-              return (
-            <div
-              key={term.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-lg hover:shadow-xl transition-shadow p-6 relative"
-            >
-              <Link
-                href={`/terms/${term.id}`}
-                className="block"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold">{term.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {term.termCode}
-                    </p>
+                return (
+                  <div key={term.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <span className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0`}>
+                          <span>{statusConfig.icon}</span>
+                          <span>{statusConfig.label}</span>
+                        </span>
+
+                        <div className="min-w-0">
+                          <Link href={`/terms/${term.id}`} className="block">
+                            <div className="font-bold truncate">{term.name}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">{term.termCode}</div>
+                          </Link>
+                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
+                            <span>{term.termType === 'POLICE' ? '🚔' : '🚒'} {term.termType === 'POLICE' ? 'Polis' : 'İtfaiye'}</span>
+                            <span>⏱️ {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}</span>
+                            <span>📅 {new Date(term.startDate).toLocaleDateString('tr-TR')}</span>
+                            <span>👨‍🎓 {term._count.students}</span>
+                            <span>🏫 {term._count.classes}</span>
+                            <span>👨‍🏫 {term._count.instructorTerms}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => handleEditClick(term)}
+                          className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                        >
+                          <Icon icon="ph:pencil-bold" width="16" />
+                          Düzenle
+                        </button>
+
+                        {term.status === 'ACTIVE' && (
+                          <button
+                            onClick={() => handleStatusChange(term.id, term.name, 'PAUSED')}
+                            className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                          >
+                            <Icon icon="ph:pause-bold" width="16" />
+                            Duraklat
+                          </button>
+                        )}
+
+                        {term.status === 'PAUSED' && (
+                          <button
+                            onClick={() => handleStatusChange(term.id, term.name, 'ACTIVE')}
+                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                          >
+                            <Icon icon="ph:play-bold" width="16" />
+                            Aktifleştir
+                          </button>
+                        )}
+
+                        {term.status === 'ARCHIVED' && (
+                          <button
+                            onClick={() => handleStatusChange(term.id, term.name, 'ACTIVE')}
+                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                          >
+                            <Icon icon="ph:arrow-counter-clockwise-bold" width="16" />
+                            Geri Al
+                          </button>
+                        )}
+
+                        {term.status !== 'ARCHIVED' && (
+                          <button
+                            onClick={() => handleStatusChange(term.id, term.name, 'ARCHIVED')}
+                            className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                          >
+                            <Icon icon="ph:archive-bold" width="16" />
+                            Arşivle
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => handleDeleteTerm(term)}
+                          className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                        >
+                          <Icon icon="ph:trash-bold" width="16" />
+                          Sil
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <span className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1`}>
-                    <span>{statusConfig.icon}</span>
-                    <span>{statusConfig.label}</span>
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <p>
-                    {term.termType === 'POLICE' ? '🚔' : '🚒'} {term.termType === 'POLICE' ? 'Polis Eğitimi' : 'İtfaiye Eğitimi'}
-                  </p>
-                  <p>
-                    ⏱️ Süre: {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}
-                  </p>
-                  <p>
-                    📅 {new Date(term.startDate).toLocaleDateString('tr-TR')} -{' '}
-                    {new Date(term.endDate).toLocaleDateString('tr-TR')}
-                  </p>
-                  <div className="flex justify-between pt-4 border-t">
-                    <span>👨‍🎓 {term._count.students}</span>
-                    <span>🏫 {term._count.classes}</span>
-                    <span>👨‍🏫 {term._count.instructorTerms}</span>
-                  </div>
-                </div>
-              </Link>
-
-              <div className="mt-4 pt-4 border-t space-y-2">
-                {/* Action Buttons Row 1: Edit, Status */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleEditClick(term)
-                    }}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                  >
-                    <Icon icon="ph:pencil-bold" width="16" />
-                    Düzenle
-                  </button>
-                  
-                  {term.status === 'ACTIVE' && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleStatusChange(term.id, term.name, 'PAUSED')
-                      }}
-                      className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Icon icon="ph:pause-bold" width="16" />
-                      Duraklat
-                    </button>
-                  )}
-                  
-                  {term.status === 'PAUSED' && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleStatusChange(term.id, term.name, 'ACTIVE')
-                      }}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Icon icon="ph:play-bold" width="16" />
-                      Aktifleştir
-                    </button>
-                  )}
-                  
-                  {term.status === 'ARCHIVED' && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleStatusChange(term.id, term.name, 'ACTIVE')
-                      }}
-                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Icon icon="ph:arrow-counter-clockwise-bold" width="16" />
-                      Geri Al
-                    </button>
-                  )}
-                </div>
-
-                {/* Action Buttons Row 2: Archive/Delete */}
-                <div className="flex gap-2">
-                  {term.status !== 'ARCHIVED' && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handleStatusChange(term.id, term.name, 'ARCHIVED')
-                      }}
-                      className="flex-1 bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Icon icon="ph:archive-bold" width="16" />
-                      Arşivle
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleDeleteTerm(term)
-                    }}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                  >
-                    <Icon icon="ph:trash-bold" width="16" />
-                    Sil
-                  </button>
-                </div>
-              </div>
+                )
+              })}
             </div>
-              )
-            })
           )}
-        </div>
+        </>
       )}
 
       {/* Filter Modal */}
