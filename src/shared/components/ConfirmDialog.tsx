@@ -48,7 +48,16 @@ export default function ConfirmDialog({
   const dialogContent = (
     <div
       className="overflow-y-auto"
-      style={{ position: 'fixed', inset: 0, zIndex: 9999 }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        minHeight: '100vh',
+      }}
     >
       {/* Backdrop */}
       <div
@@ -58,10 +67,11 @@ export default function ConfirmDialog({
       />
       
       {/* Dialog */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex w-full items-center justify-center">
         <div
-          className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl transform transition-all"
+          className="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-lg shadow-xl transform transition-all"
           onClick={(e) => e.stopPropagation()}
+          style={{ pointerEvents: 'auto' }}
         >
           <div className="p-6">
             {/* Icon */}
