@@ -407,17 +407,26 @@ export default function TermsPage() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">🎓 Dönem Yönetimi</h1>
         <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
+          onClick={() => setShowCreateForm(true)}
           className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
         >
-          {showCreateForm ? 'İptal' : '+ Yeni Dönem Oluştur'}
+          + Yeni Dönem Oluştur
         </button>
       </div>
 
-      {showCreateForm && (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg mb-8">
-          <h2 className="text-xl font-bold mb-4">Yeni Dönem Oluştur</h2>
-          <form onSubmit={handleCreateTerm} className="space-y-4">
+      {/* Create Term Modal */}
+      <Modal
+        isOpen={showCreateForm}
+        onClose={() => {
+          setShowCreateForm(false)
+          setCurrentTermNumber(0)
+          setStartDate('')
+          setEndDate('')
+        }}
+        title="🎓 Yeni Dönem Oluştur"
+        size="lg"
+      >
+        <form onSubmit={handleCreateTerm} className="space-y-4">
             <div>
               <label className="block mb-2 font-medium">Dönem Tipi</label>
               <select
@@ -531,7 +540,7 @@ export default function TermsPage() {
               Dönem Oluştur
             </button>
           </form>
-        </div>
+        </Modal>
       )}
 
       {/* Search and Filter Bar */}
