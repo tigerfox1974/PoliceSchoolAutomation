@@ -15,9 +15,10 @@ export function useTerms() {
       setLoading(true)
       const res = await fetch('/api/terms')
       const data = await res.json()
-      setTerms(data)
+      setTerms(data.terms || [])
     } catch (error) {
       console.error('Dönem yükleme hatası:', error)
+      setTerms([])
     } finally {
       setLoading(false)
     }
