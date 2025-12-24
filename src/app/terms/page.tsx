@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-import { ConfirmDialog, ToastContainer } from '@/shared/components'
-import { TermTableView, CreateTermModal, EditTermModal } from '@/features/terms/components'
+import { Modal, ConfirmDialog, ToastContainer } from '@/shared/components'
+import { TermTableView, CreateTermModal } from '@/features/terms/components'
 import { useTermFilters } from '@/features/terms/hooks/useTermFilters'
 
 interface Term {
@@ -48,6 +48,14 @@ export default function TermsPage() {
   // Edit modal states
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingTerm, setEditingTerm] = useState<Term | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    termNumber: 0,
+    termType: 'POLICE' as 'POLICE' | 'FIRE',
+    duration: 'FOUR_MONTHS' as 'FOUR_MONTHS' | 'SIX_MONTHS',
+    startDate: '',
+    endDate: '',
+    status: 'ACTIVE' as 'ACTIVE' | 'PAUSED' | 'ARCHIVED',
+  })
 
   // Confirm dialog states
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -101,7 +109,41 @@ export default function TermsPage() {
 
   const handleEditClick = (term: Term) => {
     setEditingTerm(term)
+    setEditFormData({
+      termNumber: term.termNumber,
+      termType: term.termType,
+      duration: term.duration,
+      startDate: term.startDate.split('T')[0],
+      endDate: term.endDate.split('T')[0],
+      status: term.status,
+    })
     setShowEditModal(true)
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!editingTerm) return
+
+    try {
+      const res = await fetch(`/api/terms/${editingTerm.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editFormData),
+      })
+
+      if (res.ok) {
+        setShowEditModal(false)
+        setEditingTerm(null)
+        fetchTerms()
+        showToast('Dönem başarıyla güncellendi', 'success')
+      } else {
+        const error = await res.json()
+        showToast(error.error || 'Dönem güncellenemedi', 'error')
+      }
+    } catch (error) {
+      console.error('Edit error:', error)
+      showToast('Sunucu hatası', 'error')
+    }
   }
 
   const handleStatusChange = async (termId: string, termName: string, newStatus: 'ACTIVE' | 'PAUSED' | 'ARCHIVED') => {
@@ -145,34 +187,60 @@ export default function TermsPage() {
     })
   }
 
-  const handleDeleteTerm = (term: Term) => {
-    const warningMessage = term.status === 'ACTIVE'
-      ? `"${term.name}" dönemi aktif durumda. Silmek istediğinizden emin misiniz?`
-      : `"${term.name}" dönemini silmek istediğinizden emin misiniz?`
+  const handleDeleteTerm = async (term: Term) => {
+    // ACTIVE dönemler için ekstra uyarı göster
+    if (term.status === 'ACTIVE') {
+      setConfirmDialog({
+        isOpen: true,
+        title: '⚠️ Aktif Dönem Silme Uyarısı',
+        message: `"${term.name}" dönemi AKTİF durumda!\n\nBu dönemi silmek istediğinizden emin misiniz?`,
+        type: 'danger',
+        onConfirm: () => {
+          // İlk onay sonrası ikinci onay
+          setTimeout(() => {
+            setConfirmDialog({
+              isOpen: true,
+              title: '🗑️ Silme İşlemini Onayla',
+              message: `Bu işlem geri alınamaz!\n\n"${term.name}" dönemi ve tüm ilişkili veriler kalıcı olarak silinecektir.`,
+              type: 'danger',
+              onConfirm: async () => {
+                await performDelete(term.id, term.name)
+              },
+            })
+          }, 150)
+        },
+      })
+    } else {
+      // Aktif olmayan dönemler için tek onay
+      setConfirmDialog({
+        isOpen: true,
+        title: '🗑️ Dönemi Sil',
+        message: `"${term.name}" dönemini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz!`,
+        type: 'danger',
+        onConfirm: async () => {
+          await performDelete(term.id, term.name)
+        },
+      })
+    }
+  }
 
-    setConfirmDialog({
-      isOpen: true,
-      title: 'Dönemi Sil',
-      message: warningMessage,
-      type: 'danger',
-      onConfirm: async () => {
-        try {
-          setConfirmDialog(prev => ({ ...prev, isOpen: false }))
-          const res = await fetch(`/api/terms/${term.id}`, { method: 'DELETE' })
+  const performDelete = async (termId: string, termName: string) => {
+    try {
+      const res = await fetch(`/api/terms/${termId}`, {
+        method: 'DELETE',
+      })
 
-          if (res.ok) {
-            fetchTerms()
-            showToast('Dönem başarıyla silindi', 'success')
-          } else {
-            const error = await res.json()
-            showToast(error.error || 'Dönem silinemedi', 'error')
-          }
-        } catch (error) {
-          console.error('Dönem silme hatası:', error)
-          showToast('Sunucu hatası', 'error')
-        }
-      },
-    })
+      if (res.ok) {
+        fetchTerms()
+        showToast('Dönem başarıyla silindi', 'success')
+      } else {
+        const error = await res.json()
+        showToast(error.error || 'Dönem silinemedi', 'error')
+      }
+    } catch (error) {
+      console.error('Dönem silme hatası:', error)
+      showToast('Sunucu hatası', 'error')
+    }
   }
 
   if (loading) {
@@ -695,19 +763,110 @@ export default function TermsPage() {
         </>
       )}
 
-      <EditTermModal
+      {/* Edit Modal */}
+      <Modal
         isOpen={showEditModal}
-        term={editingTerm}
         onClose={() => {
           setShowEditModal(false)
           setEditingTerm(null)
         }}
-        onSuccess={(msg) => {
-          showToast(msg, 'success')
-          fetchTerms()
-        }}
-        onError={(msg) => showToast(msg, 'error')}
-      />
+        title="✏️ Dönemi Düzenle"
+        size="lg"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <div>
+            <label className="block mb-2 font-medium">Dönem Tipi</label>
+            <select
+              value={editFormData.termType}
+              onChange={(e) => setEditFormData({ ...editFormData, termType: e.target.value as 'POLICE' | 'FIRE' })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="POLICE">Polis Temel Eğitimi</option>
+              <option value="FIRE">İtfaiye Temel Eğitimi</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Dönem Numarası</label>
+            <input
+              type="number"
+              min="1"
+              required
+              value={editFormData.termNumber}
+              onChange={(e) => setEditFormData({ ...editFormData, termNumber: parseInt(e.target.value) || 0 })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            />
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Kurs Süresi</label>
+            <select
+              value={editFormData.duration}
+              onChange={(e) => setEditFormData({ ...editFormData, duration: e.target.value as 'FOUR_MONTHS' | 'SIX_MONTHS' })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="FOUR_MONTHS">4 Ay</option>
+              <option value="SIX_MONTHS">6 Ay</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2 font-medium">Başlangıç Tarihi</label>
+              <input
+                type="date"
+                required
+                value={editFormData.startDate}
+                onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+            
+            <div>
+              <label className="block mb-2 font-medium">Bitiş Tarihi</label>
+              <input
+                type="date"
+                required
+                value={editFormData.endDate}
+                onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
+                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-2 font-medium">Durum</label>
+            <select
+              value={editFormData.status}
+              onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as 'ACTIVE' | 'PAUSED' | 'ARCHIVED' })}
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+            >
+              <option value="ACTIVE">✓ Aktif</option>
+              <option value="PAUSED">⏸ Duraklatıldı</option>
+              <option value="ARCHIVED">📦 Arşivlendi</option>
+            </select>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowEditModal(false)
+                setEditingTerm(null)
+              }}
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 rounded"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+            >
+              Kaydet
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Confirm Dialog */}
       <ConfirmDialog
