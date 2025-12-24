@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import type { Term, TermFilters, SortOption, ViewMode } from '../types'
+import type { Term, TermFilters, SortOption, SortOrder, ViewMode } from '../types'
 import { filterTerms, sortTerms } from '../utils'
 
 export function useTermFilters(terms: Term[]) {
@@ -17,6 +17,7 @@ export function useTermFilters(terms: Term[]) {
     dateTo: '',
   })
   const [sortBy, setSortBy] = useState<SortOption>('newest')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
 
   // Filtrelenmiş dönemler
@@ -26,8 +27,8 @@ export function useTermFilters(terms: Term[]) {
 
   // Filtrelenmiş + sıralanmış dönemler
   const sortedAndFilteredTerms = useMemo(() => {
-    return sortTerms(filteredTerms, sortBy)
-  }, [filteredTerms, sortBy])
+    return sortTerms(filteredTerms, sortBy, sortOrder)
+  }, [filteredTerms, sortBy, sortOrder])
 
   const clearFilters = () => {
     setSearchQuery('')
@@ -45,6 +46,7 @@ export function useTermFilters(terms: Term[]) {
     searchQuery,
     filters,
     sortBy,
+    sortOrder,
     viewMode,
     
     // Computed
@@ -55,6 +57,7 @@ export function useTermFilters(terms: Term[]) {
     setSearchQuery,
     setFilters,
     setSortBy,
+    setSortOrder,
     setViewMode,
     clearFilters,
   }

@@ -2,17 +2,14 @@
 
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-import { Term } from '../types'
+import { Term, SortOption, SortOrder } from '../types'
 import { getStatusConfig } from '../utils'
-
-type SortField = 'name' | 'termType' | 'duration' | 'status' | 'endDate' | 'students' | 'classes' | 'instructors'
-type SortOrder = 'asc' | 'desc'
 
 interface TermTableViewProps {
   terms: Term[]
-  sortBy: SortField
+  sortBy: SortOption
   sortOrder: SortOrder
-  onSort: (field: SortField) => void
+  onSort: (field: SortOption) => void
   onEdit: (term: Term) => void
   onStatusChange: (id: string, name: string, newStatus: 'ACTIVE' | 'PAUSED' | 'ARCHIVED') => void
   onDelete: (term: Term) => void
@@ -27,7 +24,7 @@ export default function TermTableView({
   onStatusChange,
   onDelete,
 }: TermTableViewProps) {
-  const renderSortButton = (field: SortField, label: string) => (
+  const renderSortButton = (field: SortOption, label: string) => (
     <button
       onClick={() => onSort(field)}
       className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"

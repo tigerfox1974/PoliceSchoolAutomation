@@ -32,7 +32,8 @@ export interface TermFilters {
   dateTo: string
 }
 
-export type SortOption = 'newest' | 'oldest' | 'name' | 'status'
+export type SortOption = 'newest' | 'oldest' | 'name' | 'status' | 'termType' | 'duration' | 'endDate' | 'students' | 'classes' | 'instructors'
+export type SortOrder = 'asc' | 'desc'
 export type ViewMode = 'grid' | 'list'
 
 export interface CreateTermData {

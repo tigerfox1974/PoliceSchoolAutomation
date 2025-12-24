@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { Modal, ConfirmDialog, ToastContainer } from '@/shared/components'
 import { TermTableView } from '@/features/terms/components'
+import { useTermFilters } from '@/features/terms/hooks/useTermFilters'
 
 interface Term {
   id: string
@@ -34,6 +35,22 @@ export default function TermsPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
+  // useTermFilters hook - filtreleme, sıralama ve görünüm yönetimi
+  const {
+    searchQuery,
+    filters,
+    sortBy,
+    sortOrder,
+    viewMode,
+    sortedAndFilteredTerms,
+    setSearchQuery,
+    setFilters,
+    setSortBy,
+    setSortOrder,
+    setViewMode,
+    clearFilters,
+  } = useTermFilters(terms)
+
   // Edit modal states
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingTerm, setEditingTerm] = useState<Term | null>(null)
@@ -61,23 +78,8 @@ export default function TermsPage() {
     onConfirm: () => {},
   })
 
-  // Search and filter states
-  const [searchQuery, setSearchQuery] = useState('')
+  // Filter modal state
   const [showFilterModal, setShowFilterModal] = useState(false)
-  const [filters, setFilters] = useState({
-    termType: [] as string[],
-    status: [] as string[],
-    duration: [] as string[],
-    dateFrom: '',
-    dateTo: '',
-  })
-  const [filteredTerms, setFilteredTerms] = useState<Term[]>([])
-
-  // View and sort states
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [sortBy, setSortBy] = useState<'name' | 'termType' | 'duration' | 'status' | 'endDate' | 'students' | 'classes' | 'instructors'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  const [sortedAndFilteredTerms, setSortedAndFilteredTerms] = useState<Term[]>([])
 
   // Toast notifications
   const [toasts, setToasts] = useState<Array<{
@@ -94,95 +96,6 @@ export default function TermsPage() {
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
-
-  // Apply search and filters
-  useEffect(() => {
-    let result = [...terms]
-
-    // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter((term) =>
-        term.name.toLowerCase().includes(query) ||
-        term.termCode.toLowerCase().includes(query) ||
-        term.termNumber.toString().includes(query)
-      )
-    }
-
-    // Type filter
-    if (filters.termType.length > 0) {
-      result = result.filter((term) => filters.termType.includes(term.termType))
-    }
-
-    // Status filter
-    if (filters.status.length > 0) {
-      result = result.filter((term) => filters.status.includes(term.status))
-    }
-
-    // Duration filter
-    if (filters.duration.length > 0) {
-      result = result.filter((term) => filters.duration.includes(term.duration))
-    }
-
-    // Date range filter (overlap)
-    if (filters.dateFrom || filters.dateTo) {
-      const from = filters.dateFrom ? new Date(filters.dateFrom) : null
-      const to = filters.dateTo ? new Date(filters.dateTo) : null
-
-      result = result.filter((term) => {
-        const termStart = new Date(term.startDate)
-        const termEnd = new Date(term.endDate)
-
-        if (from && termEnd < from) return false
-        if (to && termStart > to) return false
-        return true
-      })
-    }
-
-    setFilteredTerms(result)
-  }, [terms, searchQuery, filters])
-
-  // Apply sorting
-  useEffect(() => {
-    let result = [...filteredTerms]
-
-    switch (sortBy) {
-      case 'name':
-        result.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
-        break
-      case 'termType':
-        result.sort((a, b) => a.termType.localeCompare(b.termType))
-        break
-      case 'duration':
-        result.sort((a, b) => {
-          const durationOrder = { FOUR_MONTHS: 0, SIX_MONTHS: 1 }
-          return durationOrder[a.duration] - durationOrder[b.duration]
-        })
-        break
-      case 'status':
-        const statusOrder = { ACTIVE: 0, PAUSED: 1, ARCHIVED: 2 }
-        result.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
-        break
-      case 'endDate':
-        result.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
-        break
-      case 'students':
-        result.sort((a, b) => a._count.students - b._count.students)
-        break
-      case 'classes':
-        result.sort((a, b) => a._count.classes - b._count.classes)
-        break
-      case 'instructors':
-        result.sort((a, b) => a._count.instructorTerms - b._count.instructorTerms)
-        break
-    }
-
-    if (sortOrder === 'desc') {
-      result.reverse()
-    }
-
-    setSortedAndFilteredTerms(result)
-  }, [filteredTerms, sortBy, sortOrder])
 
   useEffect(() => {
     fetchTerms()
@@ -282,17 +195,6 @@ export default function TermsPage() {
       console.error('Dönem oluşturma hatası:', error)
       showToast('Sunucu hatası', 'error')
     }
-  }
-
-  const clearFilters = () => {
-    setSearchQuery('')
-    setFilters({
-      termType: [],
-      status: [],
-      duration: [],
-      dateFrom: '',
-      dateTo: '',
-    })
   }
 
   const handleEditClick = (term: Term) => {

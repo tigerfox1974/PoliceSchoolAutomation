@@ -17,11 +17,11 @@ export function filterTerms(
 
   // Arama filtresi
   if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase()
+    const query = searchQuery.toLocaleLowerCase('tr-TR')
     result = result.filter(
       (term) =>
-        term.name.toLowerCase().includes(query) ||
-        term.termCode.toLowerCase().includes(query) ||
+        term.name.toLocaleLowerCase('tr-TR').includes(query) ||
+        term.termCode.toLocaleLowerCase('tr-TR').includes(query) ||
         term.termNumber.toString().includes(query)
     )
   }
@@ -62,8 +62,13 @@ export function filterTerms(
 /**
  * Dönemleri belirtilen kritere göre sıralar
  */
-export function sortTerms(terms: Term[], sortBy: SortOption): Term[] {
+export function sortTerms(
+  terms: Term[],
+  sortBy: SortOption,
+  sortOrder: 'asc' | 'desc' = 'asc'
+): Term[] {
   const result = [...terms]
+  const direction = sortOrder === 'asc' ? 1 : -1
 
   switch (sortBy) {
     case 'newest':
@@ -79,11 +84,32 @@ export function sortTerms(terms: Term[], sortBy: SortOption): Term[] {
       )
       break
     case 'name':
-      result.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+      result.sort((a, b) => direction * a.name.localeCompare(b.name, 'tr'))
       break
     case 'status':
       const statusOrder = { ACTIVE: 0, PAUSED: 1, ARCHIVED: 2 }
-      result.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
+      result.sort((a, b) => direction * (statusOrder[a.status] - statusOrder[b.status]))
+      break
+    case 'termType':
+      result.sort((a, b) => direction * a.termType.localeCompare(b.termType))
+      break
+    case 'duration':
+      const durationOrder = { FOUR_MONTHS: 0, SIX_MONTHS: 1 }
+      result.sort((a, b) => direction * (durationOrder[a.duration] - durationOrder[b.duration]))
+      break
+    case 'endDate':
+      result.sort(
+        (a, b) => direction * (new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+      )
+      break
+    case 'students':
+      result.sort((a, b) => direction * (a._count.students - b._count.students))
+      break
+    case 'classes':
+      result.sort((a, b) => direction * (a._count.classes - b._count.classes))
+      break
+    case 'instructors':
+      result.sort((a, b) => direction * (a._count.instructorTerms - b._count.instructorTerms))
       break
   }
 
