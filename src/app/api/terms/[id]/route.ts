@@ -16,7 +16,15 @@ export async function GET(
             dormitory: true,
           },
         },
-        classes: true,
+        classes: {
+          include: {
+            _count: {
+              select: {
+                students: true,
+              },
+            },
+          },
+        },
         instructorTerms: {
           include: {
             instructor: true,

@@ -74,7 +74,8 @@ export default function TermsPage() {
 
   // View and sort states
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name' | 'status'>('newest')
+  const [sortBy, setSortBy] = useState<'name' | 'termType' | 'duration' | 'status' | 'endDate' | 'students' | 'classes' | 'instructors'>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [sortedAndFilteredTerms, setSortedAndFilteredTerms] = useState<Term[]>([])
 
   // Toast notifications
@@ -145,23 +146,42 @@ export default function TermsPage() {
     let result = [...filteredTerms]
 
     switch (sortBy) {
-      case 'newest':
-        result.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
-        break
-      case 'oldest':
-        result.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
-        break
       case 'name':
         result.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+        break
+      case 'termType':
+        result.sort((a, b) => a.termType.localeCompare(b.termType))
+        break
+      case 'duration':
+        result.sort((a, b) => {
+          const durationOrder = { FOUR_MONTHS: 0, SIX_MONTHS: 1 }
+          return durationOrder[a.duration] - durationOrder[b.duration]
+        })
         break
       case 'status':
         const statusOrder = { ACTIVE: 0, PAUSED: 1, ARCHIVED: 2 }
         result.sort((a, b) => statusOrder[a.status] - statusOrder[b.status])
         break
+      case 'endDate':
+        result.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+        break
+      case 'students':
+        result.sort((a, b) => a._count.students - b._count.students)
+        break
+      case 'classes':
+        result.sort((a, b) => a._count.classes - b._count.classes)
+        break
+      case 'instructors':
+        result.sort((a, b) => a._count.instructorTerms - b._count.instructorTerms)
+        break
+    }
+
+    if (sortOrder === 'desc') {
+      result.reverse()
     }
 
     setSortedAndFilteredTerms(result)
-  }, [filteredTerms, sortBy])
+  }, [filteredTerms, sortBy, sortOrder])
 
   useEffect(() => {
     fetchTerms()
@@ -637,13 +657,17 @@ export default function TermsPage() {
 
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'name' | 'status')}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                 className="px-4 py-2 rounded-lg border dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors cursor-pointer"
               >
-                <option value="newest">📅 En Yeni</option>
-                <option value="oldest">📅 En Eski</option>
                 <option value="name">🔤 İsme Göre</option>
+                <option value="termType">🎓 Tipe Göre</option>
+                <option value="duration">⏱️ Süreye Göre</option>
                 <option value="status">🎯 Duruma Göre</option>
+                <option value="endDate">📅 Bitiş Tarihine Göre</option>
+                <option value="students">👨‍🎓 Öğrenci Sayısına Göre</option>
+                <option value="classes">🏫 Sınıf Sayısına Göre</option>
+                <option value="instructors">👨‍🏫 Eğitmen Sayısına Göre</option>
               </select>
 
               {(searchQuery ||
@@ -1023,100 +1047,273 @@ export default function TermsPage() {
               })}
             </div>
           ) : (
-            <div className="space-y-4">
-              {sortedAndFilteredTerms.map((term) => {
-                const statusConfig = {
-                  ACTIVE: { label: 'Aktif', color: 'bg-green-500', icon: '✓' },
-                  PAUSED: { label: 'Duraklatıldı', color: 'bg-orange-500', icon: '⏸' },
-                  ARCHIVED: { label: 'Arşivlendi', color: 'bg-gray-500', icon: '📦' },
-                }[term.status]
-
-                return (
-                  <div key={term.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <span className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0`}>
-                          <span>{statusConfig.icon}</span>
-                          <span>{statusConfig.label}</span>
-                        </span>
-
-                        <div className="min-w-0">
-                          <Link href={`/terms/${term.id}`} className="block">
-                            <div className="font-bold truncate">{term.name}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">{term.termCode}</div>
-                          </Link>
-                          <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 flex flex-wrap gap-x-4 gap-y-1">
-                            <span>{term.termType === 'POLICE' ? '🚔' : '🚒'} {term.termType === 'POLICE' ? 'Polis' : 'İtfaiye'}</span>
-                            <span>⏱️ {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}</span>
-                            <span>📅 {new Date(term.startDate).toLocaleDateString('tr-TR')}</span>
-                            <span>👨‍🎓 {term._count.students}</span>
-                            <span>🏫 {term._count.classes}</span>
-                            <span>👨‍🏫 {term._count.instructorTerms}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 flex-wrap">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 text-left">
                         <button
-                          onClick={() => handleEditClick(term)}
-                          className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                          onClick={() => {
+                            if (sortBy === 'status') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('status')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
-                          <Icon icon="ph:pencil-bold" width="16" />
-                          Düzenle
+                          Durum
+                          <span className="text-xs">
+                            {sortBy === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'status' && '↕'}
+                          </span>
                         </button>
-
-                        {term.status === 'ACTIVE' && (
-                          <button
-                            onClick={() => handleStatusChange(term.id, term.name, 'PAUSED')}
-                            className="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm rounded transition-colors flex items-center gap-2"
-                          >
-                            <Icon icon="ph:pause-bold" width="16" />
-                            Duraklat
-                          </button>
-                        )}
-
-                        {term.status === 'PAUSED' && (
-                          <button
-                            onClick={() => handleStatusChange(term.id, term.name, 'ACTIVE')}
-                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded transition-colors flex items-center gap-2"
-                          >
-                            <Icon icon="ph:play-bold" width="16" />
-                            Aktifleştir
-                          </button>
-                        )}
-
-                        {term.status === 'ARCHIVED' && (
-                          <button
-                            onClick={() => handleStatusChange(term.id, term.name, 'ACTIVE')}
-                            className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded transition-colors flex items-center gap-2"
-                          >
-                            <Icon icon="ph:arrow-counter-clockwise-bold" width="16" />
-                            Geri Al
-                          </button>
-                        )}
-
-                        {term.status !== 'ARCHIVED' && (
-                          <button
-                            onClick={() => handleStatusChange(term.id, term.name, 'ARCHIVED')}
-                            className="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded transition-colors flex items-center gap-2"
-                          >
-                            <Icon icon="ph:archive-bold" width="16" />
-                            Arşivle
-                          </button>
-                        )}
-
+                      </th>
+                      <th className="px-4 py-3 text-left">
                         <button
-                          onClick={() => handleDeleteTerm(term)}
-                          className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded transition-colors flex items-center gap-2"
+                          onClick={() => {
+                            if (sortBy === 'name') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('name')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         >
-                          <Icon icon="ph:trash-bold" width="16" />
-                          Sil
+                          Dönem Adı
+                          <span className="text-xs">
+                            {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'name' && '↕'}
+                          </span>
                         </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'termType') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('termType')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          Tip
+                          <span className="text-xs">
+                            {sortBy === 'termType' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'termType' && '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'duration') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('duration')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          Süre
+                          <span className="text-xs">
+                            {sortBy === 'duration' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'duration' && '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'endDate') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('endDate')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          Bitiş Tarihi
+                          <span className="text-xs">
+                            {sortBy === 'endDate' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'endDate' && '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'students') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('students')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                        >
+                          👨‍🎓 Öğrenci
+                          <span className="text-xs">
+                            {sortBy === 'students' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'students' && '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'classes') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('classes')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                        >
+                          🏫 Sınıf
+                          <span className="text-xs">
+                            {sortBy === 'classes' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'classes' && '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-center">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'instructors') {
+                              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                            } else {
+                              setSortBy('instructors')
+                              setSortOrder('asc')
+                            }
+                          }}
+                          className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
+                        >
+                          👨‍🏫 Eğitmen
+                          <span className="text-xs">
+                            {sortBy === 'instructors' && (sortOrder === 'asc' ? '↑' : '↓')}
+                            {sortBy !== 'instructors' && '↕'}
+                          </span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">İşlemler</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {sortedAndFilteredTerms.map((term) => {
+                      const statusConfig = {
+                        ACTIVE: { label: 'Aktif', color: 'bg-green-500', icon: '✓' },
+                        PAUSED: { label: 'Duraklatıldı', color: 'bg-orange-500', icon: '⏸' },
+                        ARCHIVED: { label: 'Arşivlendi', color: 'bg-gray-500', icon: '📦' },
+                      }[term.status]
+
+                      return (
+                        <tr key={term.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1 w-fit`}>
+                              <span>{statusConfig.icon}</span>
+                              <span>{statusConfig.label}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link href={`/terms/${term.id}`} className="block hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                              <div className="font-semibold">{term.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">{term.termCode}</div>
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {term.termType === 'POLICE' ? '🚔 Polis' : '🚒 İtfaiye'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {new Date(term.endDate).toLocaleDateString('tr-TR')}
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm font-medium">
+                            {term._count.students}
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm font-medium">
+                            {term._count.classes}
+                          </td>
+                          <td className="px-4 py-3 text-center text-sm font-medium">
+                            {term._count.instructorTerms}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleEditClick(term)}
+                                className="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                                title="Düzenle"
+                              >
+                                <Icon icon="ph:pencil-bold" width="16" />
+                              </button>
+
+                              {term.status === 'ACTIVE' && (
+                                <button
+                                  onClick={() => handleStatusChange(term.id, term.name, 'PAUSED')}
+                                  className="p-2 bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                                  title="Duraklat"
+                                >
+                                  <Icon icon="ph:pause-bold" width="16" />
+                                </button>
+                              )}
+
+                              {term.status === 'PAUSED' && (
+                                <button
+                                  onClick={() => handleStatusChange(term.id, term.name, 'ACTIVE')}
+                                  className="p-2 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                  title="Aktifleştir"
+                                >
+                                  <Icon icon="ph:play-bold" width="16" />
+                                </button>
+                              )}
+
+                              {term.status === 'ARCHIVED' && (
+                                <button
+                                  onClick={() => handleStatusChange(term.id, term.name, 'ACTIVE')}
+                                  className="p-2 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                                  title="Geri Al"
+                                >
+                                  <Icon icon="ph:arrow-counter-clockwise-bold" width="16" />
+                                </button>
+                              )}
+
+                              {term.status !== 'ARCHIVED' && (
+                                <button
+                                  onClick={() => handleStatusChange(term.id, term.name, 'ARCHIVED')}
+                                  className="p-2 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
+                                  title="Arşivle"
+                                >
+                                  <Icon icon="ph:archive-bold" width="16" />
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => handleDeleteTerm(term)}
+                                className="p-2 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                                title="Sil"
+                              >
+                                <Icon icon="ph:trash-bold" width="16" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
