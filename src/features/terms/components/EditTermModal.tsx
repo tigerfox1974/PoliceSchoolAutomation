@@ -1,70 +1,26 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { FormEvent } from 'react'
 import { Modal } from '@/shared/components'
 import { Term } from '../types'
+import { useEditTerm } from '../hooks/useEditTerm'
 
 interface EditTermModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (message: string) => void
+  onError: (message: string) => void
   term: Term | null
 }
 
-interface EditFormData {
-  termNumber: number
-  termType: 'POLICE' | 'FIRE'
-  duration: 'FOUR_MONTHS' | 'SIX_MONTHS'
-  startDate: string
-  endDate: string
-  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED'
-}
+export default function EditTermModal({ isOpen, onClose, onSuccess, onError, term }: EditTermModalProps) {
+  const { formData, setFormData, isSubmitting, handleSubmit } = useEditTerm({ term, onSuccess, onError })
 
-export default function EditTermModal({ isOpen, onClose, onSuccess, term }: EditTermModalProps) {
-  const [formData, setFormData] = useState<EditFormData>({
-    termNumber: 0,
-    termType: 'POLICE',
-    duration: 'FOUR_MONTHS',
-    startDate: '',
-    endDate: '',
-    status: 'ACTIVE',
-  })
-
-  useEffect(() => {
-    if (term) {
-      setFormData({
-        termNumber: term.termNumber,
-        termType: term.termType,
-        duration: term.duration,
-        startDate: term.startDate.split('T')[0],
-        endDate: term.endDate.split('T')[0],
-        status: term.status,
-      })
-    }
-  }, [term])
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!term) return
-
-    try {
-      const res = await fetch(`/api/terms/${term.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      if (res.ok) {
-        onSuccess()
-        onClose()
-        alert('Dönem başarıyla güncellendi')
-      } else {
-        const error = await res.json()
-        alert(error.error || 'Dönem güncellenemedi')
-      }
-    } catch (error) {
-      console.error('Edit error:', error)
-      alert('Sunucu hatası')
+    const success = await handleSubmit()
+    if (success) {
+      onClose()
     }
   }
 
@@ -77,7 +33,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, term }: Edit
       title="✏️ Dönem Düzenle"
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block mb-2 font-medium">Dönem Tipi</label>
           <select
@@ -161,9 +117,10 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, term }: Edit
           </button>
           <button
             type="submit"
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
+            disabled={isSubmitting}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 rounded transition-colors"
           >
-            Güncelle
+            {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
           </button>
         </div>
       </form>
