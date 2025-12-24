@@ -5,3 +5,5 @@
 
 export { useTerms } from './useTerms'
 export { useTermFilters } from './useTermFilters'
+export { useCreateTerm } from './useCreateTerm'
+export { useEditTerm } from './useEditTerm'

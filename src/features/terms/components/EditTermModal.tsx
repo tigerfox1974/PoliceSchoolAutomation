@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { FormEvent } from 'react'
 import { Modal } from '@/shared/components'
 import { Term } from '../types'
+import { useEditTerm } from '../hooks/useEditTerm'
 
 interface EditTermModalProps {
   isOpen: boolean
@@ -12,69 +13,22 @@ interface EditTermModalProps {
   term: Term | null
 }
 
-interface EditFormData {
-  termNumber: number
-  termType: 'POLICE' | 'FIRE'
-  duration: 'FOUR_MONTHS' | 'SIX_MONTHS'
-  startDate: string
-  endDate: string
-  status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED'
-}
-
 export default function EditTermModal({ isOpen, onClose, onSuccess, onError, term }: EditTermModalProps) {
-  const [formData, setFormData] = useState<EditFormData>({
-    termNumber: 0,
-    termType: 'POLICE',
-    duration: 'FOUR_MONTHS',
-    startDate: '',
-    endDate: '',
-    status: 'ACTIVE',
-  })
+  const {
+    formData,
+    isSubmitting,
+    updateTermNumber,
+    updateTermType,
+    updateDuration,
+    updateStartDate,
+    updateEndDate,
+    updateStatus,
+    handleSubmit: submitForm,
+  } = useEditTerm({ term, isOpen, onSuccess, onError, onClose })
 
-  // Bitiş tarihini otomatik hesapla
-  const calculateEndDate = (startDate: string, duration: 'FOUR_MONTHS' | 'SIX_MONTHS'): string => {
-    if (!startDate) return ''
-    const start = new Date(startDate)
-    const months = duration === 'FOUR_MONTHS' ? 4 : 6
-    const end = new Date(start.setMonth(start.getMonth() + months))
-    return end.toISOString().split('T')[0]
-  }
-
-  useEffect(() => {
-    if (term) {
-      setFormData({
-        termNumber: term.termNumber,
-        termType: term.termType,
-        duration: term.duration,
-        startDate: term.startDate.split('T')[0],
-        endDate: term.endDate.split('T')[0],
-        status: term.status,
-      })
-    }
-  }, [term])
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!term) return
-
-    try {
-      const res = await fetch(`/api/terms/${term.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
-
-      if (res.ok) {
-        onSuccess('Dönem başarıyla güncellendi')
-        onClose()
-      } else {
-        const error = await res.json()
-        onError(error.error || 'Dönem güncellenemedi')
-      }
-    } catch (error) {
-      console.error('Edit error:', error)
-      onError('Sunucu hatası')
-    }
+    submitForm()
   }
 
   if (!term) return null
@@ -91,7 +45,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
           <label className="block mb-2 font-medium">Dönem Tipi</label>
           <select
             value={formData.termType}
-            onChange={(e) => setFormData({ ...formData, termType: e.target.value as 'POLICE' | 'FIRE' })}
+            onChange={(e) => updateTermType(e.target.value as 'POLICE' | 'FIRE')}
             className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="POLICE">Polis Temel Eğitimi</option>
@@ -104,7 +58,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
           <input
             type="number"
             value={formData.termNumber}
-            onChange={(e) => setFormData({ ...formData, termNumber: parseInt(e.target.value) || 0 })}
+            onChange={(e) => updateTermNumber(parseInt(e.target.value) || 0)}
             required
             min="1"
             className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
@@ -115,11 +69,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
           <label className="block mb-2 font-medium">Kurs Süresi</label>
           <select
             value={formData.duration}
-            onChange={(e) => {
-              const newDuration = e.target.value as 'FOUR_MONTHS' | 'SIX_MONTHS'
-              const newEndDate = formData.startDate ? calculateEndDate(formData.startDate, newDuration) : formData.endDate
-              setFormData({ ...formData, duration: newDuration, endDate: newEndDate })
-            }}
+            onChange={(e) => updateDuration(e.target.value as 'FOUR_MONTHS' | 'SIX_MONTHS')}
             className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="FOUR_MONTHS">4 Ay</option>
@@ -133,11 +83,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
             <input
               type="date"
               value={formData.startDate}
-              onChange={(e) => {
-                const newStartDate = e.target.value
-                const newEndDate = calculateEndDate(newStartDate, formData.duration)
-                setFormData({ ...formData, startDate: newStartDate, endDate: newEndDate })
-              }}
+              onChange={(e) => updateStartDate(e.target.value)}
               required
               className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
             />
@@ -148,7 +94,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
             <input
               type="date"
               value={formData.endDate}
-              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+              onChange={(e) => updateEndDate(e.target.value)}
               required
               className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
             />
@@ -159,7 +105,7 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
           <label className="block mb-2 font-medium">Durum</label>
           <select
             value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as 'ACTIVE' | 'PAUSED' | 'ARCHIVED' })}
+            onChange={(e) => updateStatus(e.target.value as 'ACTIVE' | 'PAUSED' | 'ARCHIVED')}
             className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="ACTIVE">Aktif</option>
@@ -178,9 +124,10 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
           </button>
           <button
             type="submit"
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors"
+            disabled={isSubmitting}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Güncelle
+            {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
           </button>
         </div>
       </form>
