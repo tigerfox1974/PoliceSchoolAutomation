@@ -7,7 +7,8 @@ import { Term } from '../types'
 interface EditTermModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (message: string) => void
+  onError: (message: string) => void
   term: Term | null
 }
 
@@ -20,7 +21,7 @@ interface EditFormData {
   status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED'
 }
 
-export default function EditTermModal({ isOpen, onClose, onSuccess, term }: EditTermModalProps) {
+export default function EditTermModal({ isOpen, onClose, onSuccess, onError, term }: EditTermModalProps) {
   const [formData, setFormData] = useState<EditFormData>({
     termNumber: 0,
     termType: 'POLICE',
@@ -55,16 +56,15 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, term }: Edit
       })
 
       if (res.ok) {
-        onSuccess()
+        onSuccess('Dönem başarıyla güncellendi')
         onClose()
-        alert('Dönem başarıyla güncellendi')
       } else {
         const error = await res.json()
-        alert(error.error || 'Dönem güncellenemedi')
+        onError(error.error || 'Dönem güncellenemedi')
       }
     } catch (error) {
       console.error('Edit error:', error)
-      alert('Sunucu hatası')
+      onError('Sunucu hatası')
     }
   }
 
