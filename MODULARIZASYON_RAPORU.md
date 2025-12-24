@@ -99,25 +99,38 @@ interface CreateTermModalProps {
 
 ---
 
-### ADIM 3.2: EditTermModal Bileşeni (✅ Aşama 1 Tamamlandı)
+### ADIM 3.2: EditTermModal Bileşeni (✅ Tamamlandı)
 **Commit 1:** `refactor: EditTermModal bileşeni modülerleştirildi (1. aşama)`  
-**Commit 2:** `fix: Kurs süresi ve başlangıç tarihi değişince bitiş tarihi otomatik hesaplanıyor`
+**Commit 2:** `fix: Kurs süresi ve başlangıç tarihi değişince bitiş tarihi otomatik hesaplanıyor`  
+**Commit 3:** `refactor: EditTermModal hook tabanlı hale getirildi (2. aşama)`
 
 #### Yapılan İşlemler:
+
+**Aşama 1:**
 - Düzenleme formu bileşene taşındı
 - Dosya: `src/features/terms/components/EditTermModal.tsx`
 - Alert yerine toast callback'leri
 - Otomatik bitiş tarihi hesaplama (başlangıç ve süre değişince)
 
-#### EditTermModal Props:
+**Aşama 2:**
+- Form state ve logic hook'a taşındı
+- Dosya: `src/features/terms/hooks/useEditTerm.ts`
+- CreateTermModal ile tutarlı yapı
+- Test edilebilir hook mantığı
+
+#### Hook API:
 ```typescript
-interface EditTermModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSuccess: (message: string) => void
-  onError: (message: string) => void
-  term: Term | null
-}
+const {
+  formData,
+  isSubmitting,
+  updateTermNumber,
+  updateTermType,
+  updateDuration,
+  updateStartDate,
+  updateEndDate,
+  updateStatus,
+  handleSubmit,
+} = useEditTerm({ term, isOpen, onSuccess, onError, onClose })
 ```
 
 #### Özellikler:
@@ -125,9 +138,13 @@ interface EditTermModalProps {
 - ✅ Kurs süresi (4 ay/6 ay) değişince → Bitiş tarihi güncelleniyor
 - ✅ Toast mesajları entegre
 - ✅ Form validasyonu çalışıyor
+- ✅ Hook tabanlı state yönetimi
+- ✅ CreateTermModal ile tutarlı yapı
+- ✅ Loading state (isSubmitting) ile buton devre dışı
 
 #### Kod Azaltma:
 - **page.tsx:** -148 satır
+- **EditTermModal.tsx:** -78 satır (hook'a taşındı)
 - `editFormData` state kaldırıldı
 - `handleEditSubmit` fonksiyonu kaldırıldı
 - `Modal` import'u temizlendi
@@ -136,45 +153,14 @@ interface EditTermModalProps {
 - ✅ Inline edit formu tamamen kaldırıldı
 - ✅ Tüm kayıtlarda düzenleme çalışıyor
 - ✅ Kullanıcı deneyimi korundu (hatta gelişti)
+- ✅ Form mantığı test edilebilir hale geldi
+- ✅ Yeniden kullanılabilir hook yapısı
 
 ---
 
 ## 🔄 DEVAM EDEN AŞAMA
 
-### ADIM 3.2: EditTermModal - Aşama 2 (Hook Ekleme)
-**Durum:** Beklemede
-
-#### Planlanan İşlemler:
-1. `useEditTerm.ts` hook'u oluştur
-2. Form state'ini hook'a taşı
-3. API isteği mantığını hook'a taşı
-4. EditTermModal'ı hook'u kullanan basit bir bileşen yap
-
-#### Beklenen Yapı:
-```typescript
-// src/features/terms/hooks/useEditTerm.ts
-export function useEditTerm({ term, onSuccess, onError }) {
-  const [formData, setFormData] = useState(...)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  
-  const handleSubmit = async () => {
-    // API isteği
-  }
-  
-  return { formData, setFormData, isSubmitting, handleSubmit }
-}
-```
-
-#### Kazanımlar (Beklenen):
-- 🔲 Form mantığı test edilebilir
-- 🔲 CreateTermModal ile tutarlı yapı
-- 🔲 Daha az kod tekrarı
-
----
-
-## 📋 KALAN AŞAMALAR
-
-### ADIM 3.3: TermToolbar + TermFilters Bileşenleri
+### ADIM 3.3: TermToolbar + TermFilters Bileşenleri (Beklemede)
 **Durum:** Hazır ama entegre değil
 
 #### Yapılacaklar:
@@ -223,12 +209,12 @@ Grid görünümündeki kart yapısını ayrı bileşene taşı.
 | ADIM 1 | -150 | TermTableView |
 | ADIM 2 | -40 | useTermFilters |
 | ADIM 3.1 | -120 | CreateTermModal |
-| ADIM 3.2 | -148 | EditTermModal |
-| **TOPLAM** | **-458** | **%52 azalma** |
+| ADIM 3.2 | -226 | EditTermModal (-148) + useEditTerm hook (-78) |
+| **TOPLAM** | **-536** | **%61 azalma** |
 
 **Başlangıç:** ~883 satır  
-**Şu An:** ~425 satır (tahmini)  
-**Hedef:** ~300 satır (tüm aşamalar bitince)
+**Şu An:** ~347 satır (tahmini)  
+**Hedef:** ~200 satır (tüm aşamalar bitince)
 
 ---
 
@@ -241,7 +227,7 @@ src/features/terms/
 │   ├── index.ts                    # Barrel export
 │   ├── TermTableView.tsx          ✅ Tamamlandı
 │   ├── CreateTermModal.tsx        ✅ Tamamlandı
-│   ├── EditTermModal.tsx          ✅ Tamamlandı (Aşama 1)
+│   ├── EditTermModal.tsx          ✅ Tamamlandı
 │   ├── TermToolbar.tsx            📦 Hazır (entegre değil)
 │   ├── TermFilters.tsx            📦 Hazır (entegre değil)
 │   ├── TermCard.tsx               🔲 Planlanmadı
@@ -250,7 +236,7 @@ src/features/terms/
 ├── hooks/
 │   ├── useTermFilters.ts          ✅ Tamamlandı
 │   ├── useCreateTerm.ts           ✅ Tamamlandı
-│   └── useEditTerm.ts             🔲 Beklemede (Aşama 2)
+│   └── useEditTerm.ts             ✅ Tamamlandı
 │
 ├── types/
 │   └── index.ts                   ✅ Tamamlandı
@@ -353,10 +339,10 @@ export type ViewMode = 'grid' | 'list'
 ## 📝 SONRAKİ ADIMLAR
 
 ### Hemen Yapılacaklar (Öncelikli)
-1. ✅ **Test:** EditTermModal'ın mevcut halini kullanıcı test etsin
-2. 🔄 **ADIM 3.2 Aşama 2:** useEditTerm hook'u ekle
-3. 🔲 **Test:** Hook entegrasyonunu test et
-4. 🔲 **Commit:** Başarılıysa commit + push
+1. ✅ **Test:** EditTermModal'ın hook tabanlı halini kullanıcı test etsin
+2. ✅ **ADIM 3.2 Aşama 2:** useEditTerm hook'u eklendi
+3. ✅ **Commit:** Başarıyla commit + push
+4. 🔄 **Sonraki:** ADIM 3.3 (TermToolbar + TermFilters entegrasyonu)
 
 ### Orta Vadede Yapılacaklar
 1. 🔲 **ADIM 3.3:** TermToolbar + TermFilters entegrasyonu (dikkatli!)
@@ -402,4 +388,4 @@ export type ViewMode = 'grid' | 'list'
 
 **Son Güncelleme:** 24 Aralık 2025  
 **Durum:** DEVAM EDİYOR  
-**Tamamlanma:** %43 (3/7 aşama)
+**Tamamlanma:** %57 (4/7 aşama tamamlandı - ADIM 3.2 tamamen bitti)
