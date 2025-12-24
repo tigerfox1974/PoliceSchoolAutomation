@@ -1,117 +1,53 @@
 'use client'
 
-import { useState, useEffect, FormEvent } from 'react'
+import { FormEvent } from 'react'
 import { Modal } from '@/shared/components'
+import { useCreateTerm } from '../hooks/useCreateTerm'
 
 interface CreateTermModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (message: string) => void
+  onError: (message: string) => void
 }
 
-export default function CreateTermModal({ isOpen, onClose, onSuccess }: CreateTermModalProps) {
-  const [selectedType, setSelectedType] = useState<'POLICE' | 'FIRE'>('POLICE')
-  const [suggestedNumber, setSuggestedNumber] = useState<number>(1)
-  const [currentTermNumber, setCurrentTermNumber] = useState<number>(0)
-  const [selectedDuration, setSelectedDuration] = useState<'FOUR_MONTHS' | 'SIX_MONTHS'>('FOUR_MONTHS')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+export default function CreateTermModal({ isOpen, onClose, onSuccess, onError }: CreateTermModalProps) {
+  const {
+    selectedType,
+    suggestedNumber,
+    currentTermNumber,
+    selectedDuration,
+    startDate,
+    endDate,
+    isSubmitting,
+    setSelectedType,
+    setCurrentTermNumber,
+    setSelectedDuration,
+    setStartDate,
+    setEndDate,
+    handleSubmit,
+    resetForm,
+  } = useCreateTerm({ isOpen, onSuccess, onError })
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchSuggestion(selectedType)
-    }
-  }, [selectedType, isOpen])
-
-  useEffect(() => {
-    if (startDate && selectedDuration) {
-      calculateEndDate(startDate, selectedDuration)
-    }
-  }, [startDate, selectedDuration])
-
-  const fetchSuggestion = async (type: 'POLICE' | 'FIRE') => {
-    try {
-      const res = await fetch(`/api/terms/suggest?termType=${type}`)
-      const data = await res.json()
-      const suggested = data.suggestedNumber
-      
-      if (suggested === null) {
-        setSuggestedNumber(0)
-        setCurrentTermNumber(0)
-      } else {
-        setSuggestedNumber(suggested || 1)
-        setCurrentTermNumber(suggested || 1)
-      }
-    } catch (error) {
-      console.error('Öneri alınamadı:', error)
-      setSuggestedNumber(0)
-      setCurrentTermNumber(0)
-    }
-  }
-
-  const calculateEndDate = (start: string, duration: 'FOUR_MONTHS' | 'SIX_MONTHS') => {
-    const startDateObj = new Date(start)
-    const endDateObj = new Date(startDateObj)
-    
-    if (duration === 'FOUR_MONTHS') {
-      endDateObj.setMonth(endDateObj.getMonth() + 4)
-    } else {
-      endDateObj.setMonth(endDateObj.getMonth() + 6)
-    }
-    
-    setEndDate(endDateObj.toISOString().split('T')[0])
-  }
-
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const formData = new FormData(e.currentTarget)
+    await handleSubmit()
+    onClose()
+  }
 
-    const data = {
-      termNumber: formData.get('termNumber'),
-      termType: selectedType,
-      duration: selectedDuration,
-      startDate: formData.get('startDate'),
-      endDate: formData.get('endDate'),
-      isActive: formData.get('isActive') === 'on',
-    }
-
-    try {
-      const res = await fetch('/api/terms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-
-      if (res.ok) {
-        onSuccess()
-        onClose()
-        ;(e.target as HTMLFormElement).reset()
-        setStartDate('')
-        setEndDate('')
-        setCurrentTermNumber(0)
-      } else {
-        const error = await res.json()
-        alert(error.error || 'Dönem oluşturulamadı')
-      }
-    } catch (error) {
-      console.error('Dönem oluşturma hatası:', error)
-      alert('Sunucu hatası')
-    }
+  const handleClose = () => {
+    resetForm()
+    onClose()
   }
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={() => {
-        onClose()
-        setCurrentTermNumber(0)
-        setStartDate('')
-        setEndDate('')
-      }}
+      onClose={handleClose}
       title="🎓 Yeni Dönem Oluştur"
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block mb-2 font-medium">Dönem Tipi</label>
           <select
@@ -220,9 +156,10 @@ export default function CreateTermModal({ isOpen, onClose, onSuccess }: CreateTe
 
         <button
           type="submit"
-          className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
+          disabled={isSubmitting}
+          className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Dönem Oluştur
+          {isSubmitting ? 'Oluşturuluyor...' : 'Dönem Oluştur'}
         </button>
       </form>
     </Modal>
