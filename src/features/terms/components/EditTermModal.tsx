@@ -31,6 +31,15 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
     status: 'ACTIVE',
   })
 
+  // Bitiş tarihini otomatik hesapla
+  const calculateEndDate = (startDate: string, duration: 'FOUR_MONTHS' | 'SIX_MONTHS'): string => {
+    if (!startDate) return ''
+    const start = new Date(startDate)
+    const months = duration === 'FOUR_MONTHS' ? 4 : 6
+    const end = new Date(start.setMonth(start.getMonth() + months))
+    return end.toISOString().split('T')[0]
+  }
+
   useEffect(() => {
     if (term) {
       setFormData({
@@ -106,7 +115,11 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
           <label className="block mb-2 font-medium">Kurs Süresi</label>
           <select
             value={formData.duration}
-            onChange={(e) => setFormData({ ...formData, duration: e.target.value as 'FOUR_MONTHS' | 'SIX_MONTHS' })}
+            onChange={(e) => {
+              const newDuration = e.target.value as 'FOUR_MONTHS' | 'SIX_MONTHS'
+              const newEndDate = formData.startDate ? calculateEndDate(formData.startDate, newDuration) : formData.endDate
+              setFormData({ ...formData, duration: newDuration, endDate: newEndDate })
+            }}
             className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="FOUR_MONTHS">4 Ay</option>
@@ -120,7 +133,11 @@ export default function EditTermModal({ isOpen, onClose, onSuccess, onError, ter
             <input
               type="date"
               value={formData.startDate}
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              onChange={(e) => {
+                const newStartDate = e.target.value
+                const newEndDate = calculateEndDate(newStartDate, formData.duration)
+                setFormData({ ...formData, startDate: newStartDate, endDate: newEndDate })
+              }}
               required
               className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
             />
