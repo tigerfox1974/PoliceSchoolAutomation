@@ -158,40 +158,21 @@ const {
 
 ---
 
-### ADIM 3.3: TermToolbar + TermFilters Bileşenleri (✅ Tamamlandı)
-**Commit:** `refactor: TermToolbar ve TermFilters bileşenleri entegre edildi (-316 satır)`
-
-#### Yapılan İşlemler:
-- Arama çubuğu + filtre butonları → `TermToolbar.tsx` entegre edildi
-- Filtre modalı → `TermFilters.tsx` entegre edildi
-- Inline filter UI'ı tamamen kaldırıldı (316 satır)
-- `hasActiveFilters` utility fonksiyonu import edildi
-
-#### Özellikler:
-- ✅ Arama çubuğu: search query, clear button
-- ✅ Filtre butonu: active filter count göstergesi
-- ✅ Sıralama dropdown: 4 farklı sıralama seçeneği
-- ✅ View mode toggle: Grid/List görünüm değiştirme
-- ✅ Sonuç sayısı: Filtrelenmiş dönem sayısını gösterme
-- ✅ Filtre modalı: Gelişmiş filtreleme (tip, durum, süre, tarih aralığı)
-- ✅ Temizle butonu: Tüm filtreleri ve aramayı temizleme
-
-#### Kod Azaltma:
-- **page.tsx:** -316 satır (756 → 440)
-- Tüm inline search/filter UI kaldırıldı
-- İki bileşen import edildi ve kullanıldı
-
-#### Kazanımlar:
-- ✅ Kodun %42'si kaldırıldı
-- ✅ Modüler ve yeniden kullanılabilir bileşenler
-- ✅ Arayüz çalışır durumda (önceki bozulma sorunu yok)
-- ✅ Daha temiz ve okunabilir kod
-
----
-
 ## 🔄 DEVAM EDEN AŞAMA
 
-**YOK** - Temel modülerleştirme tamamlandı!
+### ADIM 3.3: TermToolbar + TermFilters Bileşenleri (Beklemede)
+**Durum:** Hazır ama entegre değil
+
+#### Yapılacaklar:
+- Arama çubuğu + filtre butonları → `TermToolbar.tsx`
+- Filtre modalı → `TermFilters.tsx`
+- Inline filter UI'ı kaldır (~300 satır azalacak)
+
+#### Mevcut Bileşenler:
+- ✅ `src/features/terms/components/TermToolbar.tsx` (hazır)
+- ✅ `src/features/terms/components/TermFilters.tsx` (hazır)
+
+**NOT:** Bu entegrasyon daha önce denendi ama arayüzü bozdu ve geri alındı. Dikkatli ilerlenecek.
 
 ---
 
@@ -229,12 +210,11 @@ Grid görünümündeki kart yapısını ayrı bileşene taşı.
 | ADIM 2 | -40 | useTermFilters |
 | ADIM 3.1 | -120 | CreateTermModal |
 | ADIM 3.2 | -226 | EditTermModal (-148) + useEditTerm hook (-78) |
-| ADIM 3.3 | -316 | TermToolbar + TermFilters |
-| **TOPLAM** | **-852** | **%97 azalma** |
+| **TOPLAM** | **-536** | **%61 azalma** |
 
-**Başlangıç:** 883 satır  
-**Şu An:** 440 satır  
-**Hedef:** ✅ **AŞILDI!** (Hedef 200 satırdı, 440'a indirdik)
+**Başlangıç:** ~883 satır  
+**Şu An:** ~347 satır (tahmini)  
+**Hedef:** ~200 satır (tüm aşamalar bitince)
 
 ---
 
@@ -359,9 +339,10 @@ export type ViewMode = 'grid' | 'list'
 ## 📝 SONRAKİ ADIMLAR
 
 ### Hemen Yapılacaklar (Öncelikli)
-1. ✅ **ADIM 1-3.3:** Temel modülerleştirme tamamlandı
-2. 🔄 **Test:** Kullanıcının tüm özellikleri test etmesi
-3. 🎉 **Başarı:** 883 satırdan 440 satıra düştü (-852 satır, %97 azalma)
+1. ✅ **Test:** EditTermModal'ın hook tabanlı halini kullanıcı test etsin
+2. ✅ **ADIM 3.2 Aşama 2:** useEditTerm hook'u eklendi
+3. ✅ **Commit:** Başarıyla commit + push
+4. 🔄 **Sonraki:** ADIM 3.3 (TermToolbar + TermFilters entegrasyonu)
 
 ### Orta Vadede Yapılacaklar
 1. 🔲 **ADIM 3.3:** TermToolbar + TermFilters entegrasyonu (dikkatli!)
@@ -406,5 +387,5 @@ export type ViewMode = 'grid' | 'list'
 ---
 
 **Son Güncelleme:** 24 Aralık 2025  
-**Durum:** ✅ TEMEL MODÜLERLEŞTIRME TAMAMLANDI  
-**Tamamlanma:** %71 (5/7 aşama tamamlandı - ADIM 3.3 başarıyla tamamlandı)
+**Durum:** DEVAM EDİYOR  
+**Tamamlanma:** %57 (4/7 aşama tamamlandı - ADIM 3.2 tamamen bitti)
