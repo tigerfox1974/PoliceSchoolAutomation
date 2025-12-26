@@ -16,114 +16,114 @@ datasource db {
 
 // Kullanıcı Rolleri
 enum UserRole {
-  ADMIN              // Yönetici - Tam erişim
-  INSTRUCTOR         // Eğitmen - Kendi dersleri
-  STUDENT_AFFAIRS    // Öğrenci İşleri Personeli
+  ADMIN // Yönetici - Tam erişim
+  INSTRUCTOR // Eğitmen - Kendi dersleri
+  STUDENT_AFFAIRS // Öğrenci İşleri Personeli
 }
 
 // Cinsiyet
 enum Gender {
-  MALE    // Erkek
-  FEMALE  // Kadın
+  MALE // Erkek
+  FEMALE // Kadın
 }
 
 // Medeni Hal
 enum MaritalStatus {
-  SINGLE   // Bekar
-  MARRIED  // Evli
+  SINGLE // Bekar
+  MARRIED // Evli
   DIVORCED // Boşanmış
-  WIDOWED  // Dul
+  WIDOWED // Dul
 }
 
 // Eğitmen Tipi
 enum InstructorType {
-  CADRE     // Kadrolu Personel (Nöbet tutar)
-  EXTERNAL  // Dış Kaynak (Nöbet tutmaz)
+  CADRE // Kadrolu Personel (Nöbet tutar)
+  EXTERNAL // Dış Kaynak (Nöbet tutmaz)
 }
 
 // Dönem/Kurs Tipi
 enum TermType {
-  POLICE    // Polis Temel Eğitimi
-  FIRE      // İtfaiye Temel Eğitimi
+  POLICE // Polis Temel Eğitimi
+  FIRE // İtfaiye Temel Eğitimi
 }
 
 // Kurs Süresi
 enum TermDuration {
-  FOUR_MONTHS  // 4 Ay
-  SIX_MONTHS   // 6 Ay
+  FOUR_MONTHS // 4 Ay
+  SIX_MONTHS // 6 Ay
 }
 
 // Dönem Durumu
 enum TermStatus {
-  ACTIVE    // Aktif - Devam eden canlı kurs
-  PAUSED    // Pasif - Durdurulmuş, süre dolmamış
-  ARCHIVED  // Arşivde - Manuel arşivlenmiş
+  ACTIVE // Aktif - Devam eden canlı kurs
+  PAUSED // Pasif - Durdurulmuş, süre dolmamış
+  ARCHIVED // Arşivde - Manuel arşivlenmiş
 }
 
 // Ders Tipi
 enum CourseType {
-  STANDARD   // Standart Ders (Haftalık düzenli)
+  STANDARD // Standart Ders (Haftalık düzenli)
   CONFERENCE // Konferans (Tek seferlik)
-  PANEL      // Panel (Düzensiz aktivite)
+  PANEL // Panel (Düzensiz aktivite)
 }
 
 // Yoklama Durumu
 enum AttendanceStatus {
-  PRESENT           // Var (Sınıfta)
-  ABSENT            // Yok (Gelmemiş)
-  PERMITTED         // İzinli (Evci, yıllık izin vb.)
-  MEDICAL_REPORT    // Raporlu (Sağlık raporu ile)
-  HOSPITALIZED      // Hastane Yatışı
-  DORM_REST         // Koğuş İstirahati (Okulda ama raporlu - YEMEK YER)
+  PRESENT // Var (Sınıfta)
+  ABSENT // Yok (Gelmemiş)
+  PERMITTED // İzinli (Evci, yıllık izin vb.)
+  MEDICAL_REPORT // Raporlu (Sağlık raporu ile)
+  HOSPITALIZED // Hastane Yatışı
+  DORM_REST // Koğuş İstirahati (Okulda ama raporlu - YEMEK YER)
 }
 
 // İzin Tipi
 enum LeaveType {
-  WEEKEND_LEAVE   // Evci (Hafta sonu izni)
-  ANNUAL_LEAVE    // Yıllık İzin
-  EXCUSE_LEAVE    // Mazeret İzni
+  WEEKEND_LEAVE // Evci (Hafta sonu izni)
+  ANNUAL_LEAVE // Yıllık İzin
+  EXCUSE_LEAVE // Mazeret İzni
   HOSPITALIZATION // Hastane Yatışı
 }
 
 // Nöbet Tipi
 enum DutyType {
-  MORNING   // Sabah Nöbeti: 06:00 - 09:00
-  NOON      // Öğle Nöbeti: 12:00 - 13:00
-  EVENING   // Akşam Nöbeti: 17:00 - 22:00
-  NIGHT     // Gece Nöbeti: 22:00 - 06:00
-  OFFICER   // Personel/Amir Nöbeti
+  MORNING // Sabah Nöbeti: 06:00 - 09:00
+  NOON // Öğle Nöbeti: 12:00 - 13:00
+  EVENING // Akşam Nöbeti: 17:00 - 22:00
+  NIGHT // Gece Nöbeti: 22:00 - 06:00
+  OFFICER // Personel/Amir Nöbeti
 }
 
 // Nöbet Kaynağı (Neden nöbete yazıldı)
 enum DutySource {
-  REGULAR      // Normal nöbet çizelgesi
+  REGULAR // Normal nöbet çizelgesi
   DISCIPLINARY // Disiplin cezası sonucu
-  SWAP         // Takas sonucu
+  SWAP // Takas sonucu
 }
 
 // Disiplin Ceza Tipi
 enum DisciplinaryPenaltyType {
-  WARNING           // Uyarı
-  REPRIMAND         // Kınama
-  POINT_DEDUCTION   // Puan Cezası
-  EXTRA_DUTY        // İlave Nöbet Cezası (Hafta sonu)
+  WARNING // Uyarı
+  REPRIMAND // Kınama
+  POINT_DEDUCTION // Puan Cezası
+  EXTRA_DUTY // İlave Nöbet Cezası (Hafta sonu)
 }
 
 // Disiplin Süreci Durumu
 enum DisciplinaryProcessStatus {
-  INCIDENT_REPORTED  // Olay Raporu Yazıldı
-  DEFENSE_REQUESTED  // Savunma İstendi
-  DEFENSE_RECEIVED   // Savunma Alındı
-  BOARD_REVIEW       // Kurul İncelemesinde
-  DECIDED            // Karar Verildi
-  CLOSED             // Dosya Kapatıldı
+  INCIDENT_REPORTED // Olay Raporu Yazıldı
+  DEFENSE_REQUESTED // Savunma İstendi
+  DEFENSE_RECEIVED // Savunma Alındı
+  BOARD_REVIEW // Kurul İncelemesinde
+  DECIDED // Karar Verildi
+  CLOSED // Dosya Kapatıldı
 }
 
 // Sınav Tipi
 enum ExamType {
-  MIDTERM  // Ara Sınav (Birden fazla olabilir)
-  FINAL    // Final Sınavı (Tek)
-  QUIZ     // Quiz/Kısa Sınav
+  MIDTERM // Ara Sınav (Birden fazla olabilir)
+  FINAL // Final Sınavı (Tek)
+  QUIZ // Quiz/Kısa Sınav
 }
 
 // Hafta Günleri
@@ -140,23 +140,41 @@ enum DayOfWeek {
 // Dış Görev Tipi
 enum ExternalActivityType {
   SHOOTING_TRAINING // Atış Eğitimi
-  FIELD_TRIP        // Gezi
-  PRACTICE          // Uygulama
-  OTHER             // Diğer
+  FIELD_TRIP // Gezi
+  PRACTICE // Uygulama
+  OTHER // Diğer
 }
 
 // Dinamik Alan Tipi
 enum DynamicFieldType {
-  TEXT     // Metin
-  NUMBER   // Sayı
-  DATE     // Tarih
-  BOOLEAN  // Evet/Hayır
+  TEXT // Metin
+  NUMBER // Sayı
+  DATE // Tarih
+  BOOLEAN // Evet/Hayır
 }
 
 // Dinamik Alan Hedef Entity
 enum DynamicFieldTarget {
-  STUDENT    // Öğrenci için
+  STUDENT // Öğrenci için
   INSTRUCTOR // Eğitmen için
+}
+
+// Özel Etkinlik Tipi
+enum SpecialEventType {
+  YOKLAMA // Her Cuma 1. ders (opsiyonel)
+  MANAGEMENT // Her Cuma 7. ders (Müdüriyet)
+  SOCIAL_SPORTS // Sosyal ve Sportif Faaliyetler
+  CEREMONY // Törenler
+  ORIENTATION // İntibak Haftası
+  OTHER // Diğer
+}
+
+// Konferans Durumu
+enum ConferenceStatus {
+  PLANNED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
 }
 
 // ============================================================================
@@ -169,7 +187,7 @@ model User {
   password    String
   firstName   String
   lastName    String
-  visibleName String   // Görüntülenecek isim (ad soyad veya unvan)
+  visibleName String // Görüntülenecek isim (ad soyad veya unvan)
   role        UserRole @default(INSTRUCTOR)
   isActive    Boolean  @default(true)
 
@@ -193,16 +211,16 @@ model User {
 // ============================================================================
 
 model Term {
-  id           String       @id @default(cuid())
-  name         String       // "68. Polis Temel Eğitimi"
-  termNumber   Int          // 68
-  termCode     String       @unique // Otomatik: "POL-68" veya "FIRE-68"
-  termType     TermType     // POLICE veya FIRE
-  duration     TermDuration // FOUR_MONTHS veya SIX_MONTHS
-  startDate    DateTime
-  endDate      DateTime
-  status       TermStatus   @default(ACTIVE) // ACTIVE, PAUSED, ARCHIVED
-  description  String?
+  id          String       @id @default(cuid())
+  name        String // "68. Polis Temel Eğitimi"
+  termNumber  Int // 68
+  termCode    String       @unique // Otomatik: "POL-68" veya "FIRE-68"
+  termType    TermType // POLICE veya FIRE
+  duration    TermDuration // FOUR_MONTHS veya SIX_MONTHS
+  startDate   DateTime
+  endDate     DateTime
+  status      TermStatus   @default(ACTIVE) // ACTIVE, PAUSED, ARCHIVED
+  description String?
 
   // Soft delete
   isDeleted Boolean   @default(false)
@@ -217,11 +235,32 @@ model Term {
   instructorTerms    InstructorTerm[]
   classes            Class[]
   courses            Course[]
-  scheduleEntries    ScheduleEntry[]
+  dailyLessons       DailyLesson[]
   exams              Exam[]
   dynamicFieldValues DynamicFieldValue[]
 
+  // İlişkiler - TermSettings
+  termSettings TermSettings?
+
   @@map("terms")
+}
+
+// Dönem Ayarları
+model TermSettings {
+  id String @id @default(cuid())
+
+  termId String @unique
+  term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  // Zaman Ayarları
+  lunchBreakDuration Int @default(60) // Öğle yemeği süresi (dakika)
+  etudDuration       Int @default(90) // ETÜD süresi (dakika)
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("term_settings")
 }
 
 // ============================================================================
@@ -232,7 +271,7 @@ model Student {
   id String @id @default(cuid())
 
   // Temel Bilgiler (Sabit Alanlar)
-  tcKimlikNo String @unique // KKTC Kimlik Numarası (10 haneli)
+  tcKimlikNo String   @unique // KKTC Kimlik Numarası (10 haneli)
   firstName  String
   lastName   String
   gender     Gender
@@ -340,9 +379,9 @@ model Class {
   updatedAt DateTime @updatedAt
 
   // İlişkiler
-  students        Student[]
-  scheduleEntries ScheduleEntry[]
-  attendances     Attendance[]
+  students     Student[]
+  dailyLessons DailyLesson[]
+  attendances  Attendance[]
 
   @@unique([termId, code])
   @@map("classes")
@@ -358,7 +397,7 @@ model Dormitory {
   name             String? // Koğuş ismi (opsiyonel)
   capacity         Int
   currentOccupancy Int     @default(0)
-  gender           Gender  // Erkek koğuşu / Kadın koğuşu
+  gender           Gender // Erkek koğuşu / Kadın koğuşu
   isReserve        Boolean @default(false) // Yedek koğuş
   floor            Int? // Kat numarası
 
@@ -381,8 +420,8 @@ model Dormitory {
 // ============================================================================
 
 model Instructor {
-  id         String @id @default(cuid())
-  tcKimlikNo String @unique
+  id         String  @id @default(cuid())
+  tcKimlikNo String  @unique
   firstName  String
   lastName   String
   email      String?
@@ -417,7 +456,7 @@ model Instructor {
   user               User?
   instructorTerms    InstructorTerm[]
   courseInstructors  CourseInstructor[]
-  scheduleEntries    ScheduleEntry[]
+  dailyLessons       DailyLesson[]
   availabilities     InstructorAvailability[]
   officerDuties      OfficerDuty[]
   attendancesTaken   Attendance[]
@@ -491,9 +530,10 @@ model Course {
 
   // İlişkiler
   courseInstructors CourseInstructor[]
-  scheduleEntries   ScheduleEntry[]
+  dailyLessons      DailyLesson[]
   exams             Exam[]
   attendances       Attendance[]
+  conferences       Conference[] // Bu derse bağlı konferanslar
 
   @@unique([termId, code])
   @@map("courses")
@@ -527,14 +567,14 @@ model TimeSlot {
   isBreak    Boolean @default(false) // Öğle arası için
 
   // İlişkiler
-  scheduleEntries ScheduleEntry[]
+  dailyLessons DailyLesson[]
 
   @@unique([startTime, endTime])
   @@map("time_slots")
 }
 
-// Haftalık Ders Programı Girişi
-model ScheduleEntry {
+// Haftalık Ders Programı Girişi / Günlük Ders Kaydı
+model DailyLesson {
   id String @id @default(cuid())
 
   termId String
@@ -543,11 +583,11 @@ model ScheduleEntry {
   classId String
   class   Class  @relation(fields: [classId], references: [id])
 
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id])
+  courseId String? // Nullable - Özel etkinlikler için ders olmayabilir
+  course   Course? @relation(fields: [courseId], references: [id])
 
-  instructorId String
-  instructor   Instructor @relation(fields: [instructorId], references: [id])
+  instructorId String? // Nullable - Özel etkinlikler için eğitmen gerekmeyebilir
+  instructor   Instructor? @relation(fields: [instructorId], references: [id])
 
   dayOfWeek DayOfWeek
 
@@ -557,17 +597,47 @@ model ScheduleEntry {
   // Belirli tarih için (tek seferlik dersler)
   specificDate DateTime?
 
+  // ⭐ ÖZEL ETKİNLİK ALANLARI
+  isSpecialEvent     Boolean           @default(false)
+  specialEventType   SpecialEventType?
+  specialEventId     String?
+  specialEvent       SpecialEvent?     @relation(fields: [specialEventId], references: [id], onDelete: SetNull)
+  specialEventTitle  String?
+  requiresInstructor Boolean           @default(true) // Eğitmen gerekli mi?
+
+  // ⭐ KONFERANS BAĞLANTISI
+  conferenceId String?
+  conference   Conference? @relation(fields: [conferenceId], references: [id], onDelete: SetNull)
+
+  // ⭐ BLOK DERS SİSTEMİ
+  isBlockSchedule Boolean @default(false)
+  blockDuration   Int? // Blok ders ise kaç saat (3-5)
+  blockTitle      String? // "İTFAİYE MESLEK DERSLERİ"
+  blockStartSlot  Int? // Bloğun başlangıç slotu (1-7)
+  blockEndSlot    Int? // Bloğun bitiş slotu (1-7)
+
+  // ⭐ FİZİKSEL AKTİVİTE DERSLERİ
+  isPhysicalActivity  Boolean @default(false)
+  requiresSpecialArea Boolean @default(false) // Spor salonu, atölye, açık alan
+  specialAreaType     String? // "GYM", "WORKSHOP", "OUTDOOR", "LAB"
+
   // Durum
   isCancelled  Boolean @default(false)
   cancelReason String?
 
   // Audit
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  Attendance Attendance[]
 
   @@unique([classId, dayOfWeek, timeSlotId, specificDate])
   @@index([instructorId, dayOfWeek])
-  @@map("schedule_entries")
+  @@index([specialEventId])
+  @@index([specialEventType])
+  @@index([isSpecialEvent])
+  @@index([isBlockSchedule])
+  @@index([conferenceId])
+  @@map("daily_lessons")
 }
 
 // Ders Programı Değişikliği / Takas Kaydı
@@ -605,6 +675,128 @@ model PublicHoliday {
   createdAt DateTime @default(now())
 
   @@map("public_holidays")
+}
+
+// ============================================================================
+// ÖZEL ETKİNLİKLER SİSTEMİ
+// ============================================================================
+
+// Özel Etkinlik (YOKLAMA, MÜDİRİYET, vb.)
+model SpecialEvent {
+  id          String           @id @default(cuid())
+  eventType   SpecialEventType
+  eventTitle  String
+  description String?          @db.Text
+  duration    Int              @default(1) // Kaç ders saati
+
+  // Zamansal bilgiler
+  dayOfWeek Int? // 1=Pazartesi, 5=Cuma (NULL=tüm günler için)
+  slotIndex Int? // Hangi ders saati (1-7, NULL=değişken)
+
+  // Özellikler
+  requiresInstructor     Boolean @default(false) // Eğitmen ataması gerekli mi?
+  allClassesTogether     Boolean @default(false) // Tüm sınıflar birlikte mi?
+  countsTowardCurriculum Boolean @default(false) // Müfredattan sayılır mı?
+
+  // Yönetimsel bilgiler
+  managedBy String? // "Okul Müdürü", "Eğitmen Gözetmenliği"
+  notes     String? @db.Text
+
+  // İlişkiler
+  dailyLessons DailyLesson[]
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventType])
+  @@index([dayOfWeek, slotIndex])
+  @@map("special_events")
+}
+
+// Dış Konuşmacı
+model ExternalSpeaker {
+  id           String  @id @default(cuid())
+  firstName    String
+  lastName     String
+  title        String? // "Prof. Dr.", "Doç. Dr.", "Uzman"
+  organization String? // "İstanbul Üniversitesi", "Emniyet Müdürlüğü"
+  department   String? // "Yangın Mühendisliği", "Hukuk Fakültesi"
+
+  // İletişim
+  email   String? @unique
+  phone   String?
+  address String? @db.Text
+
+  // Uzmanlık Alanları (JSON array)
+  expertise Json? // ["Yangın Güvenliği", "Afet Yönetimi"]
+  bio       String? @db.Text
+
+  // İlişkiler
+  conferences Conference[]
+
+  // Yönetim
+  isActive Boolean @default(true)
+  notes    String? @db.Text
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lastName, firstName])
+  @@index([organization])
+  @@index([isActive])
+  @@map("external_speakers")
+}
+
+// Konferans
+model Conference {
+  id              String  @id @default(cuid())
+  conferenceTitle String
+  topic           String  @db.Text
+  description     String? @db.Text
+
+  // Konuşmacı Bilgileri
+  externalSpeakerId String?
+  externalSpeaker   ExternalSpeaker? @relation(fields: [externalSpeakerId], references: [id], onDelete: SetNull)
+
+  // Zamansal bilgiler
+  scheduledDate DateTime? @db.Date
+  duration      Int       @default(2) // Genellikle çift ders (2 saat)
+  startSlot     Int? // Başlangıç ders saati (genellikle 6)
+  endSlot       Int? // Bitiş ders saati (genellikle 7)
+
+  // Hedef kitle (JSON array)
+  targetClasses Json? // ["A", "B", "C"] veya ["ALL"]
+  isAllClasses  Boolean @default(false)
+
+  // Yer ve ekipman
+  requiresSpecialRoom Boolean @default(false)
+  specialRoomType     String? // "AUDITORIUM", "CONFERENCE_HALL"
+  requiredEquipment   Json? // ["Projeksiyon", "Ses Sistemi"]
+
+  // Müfredat
+  countsTowardCurriculum Boolean @default(false)
+  courseId               String? // Hangi ders müfredatına sayılır (varsa)
+  course                 Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  // Yönetim
+  status      ConferenceStatus @default(PLANNED)
+  organizerId String? // Organize eden kullanıcı ID
+  notes       String?          @db.Text
+
+  // İlişkiler
+  dailyLessons DailyLesson[]
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scheduledDate])
+  @@index([status])
+  @@index([externalSpeakerId])
+  @@index([courseId])
+  @@map("conferences")
 }
 
 // ============================================================================
@@ -684,8 +876,11 @@ model Attendance {
   classId String
   class   Class  @relation(fields: [classId], references: [id])
 
-  courseId String
-  course   Course @relation(fields: [courseId], references: [id])
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  dailyLessonId String?
+  dailyLesson   DailyLesson? @relation(fields: [dailyLessonId], references: [id], onDelete: SetNull)
 
   date   DateTime
   status AttendanceStatus
@@ -703,9 +898,10 @@ model Attendance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([studentId, courseId, date])
+  @@unique([studentId, date, classId, dailyLessonId])
   @@index([date])
   @@index([status])
+  @@index([dailyLessonId])
   @@map("attendances")
 }
 
@@ -821,8 +1017,8 @@ model MealExclusion {
 
 // Suç/İhlal Tipi Tanımı
 model ViolationType {
-  id            String @id @default(cuid())
-  code          String @unique
+  id            String  @id @default(cuid())
+  code          String  @unique
   name          String // "İzinsiz dışarı çıkma"
   description   String?
   defaultPoints Int // Varsayılan ceza puanı (Örn: -10)
@@ -847,7 +1043,7 @@ model DisciplinaryRecord {
   incidentDescription String?
 
   // Ceza Bilgileri
-  penaltyPoints Int                       @default(0) // Kesilen puan
+  penaltyPoints Int                      @default(0) // Kesilen puan
   penaltyType   DisciplinaryPenaltyType?
 
   // Süreç Durumu
@@ -930,7 +1126,7 @@ model Exam {
 
   examDate    DateTime
   duration    Int // Dakika
-  totalPoints Int  @default(100)
+  totalPoints Int      @default(100)
 
   // Not: Bütünleme sınavı YOKTUR (KKTC kuralı)
 
