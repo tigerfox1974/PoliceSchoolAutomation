@@ -18,6 +18,18 @@ export async function GET(request: Request) {
     const instructors = await prisma.instructor.findMany({
       where,
       include: {
+        courseInstructors: {
+          include: {
+            course: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                programScope: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             courseInstructors: true,
