@@ -63,8 +63,8 @@ export default function HomePage() {
       href: '/instructors',
       icon: 'ph:users-three-bold',
       color: 'bg-cyan-600 hover:bg-cyan-700',
-      stats: 'Yakında',
-      available: false,
+      stats: 'Eğitmen Kayıtları',
+      available: true,
     },
     {
       title: '📅 Ders Programı',
@@ -113,7 +113,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Aktif Modüller</p>
-                <p className="text-3xl font-bold text-blue-600">5</p>
+                <p className="text-3xl font-bold text-blue-600">6</p>
               </div>
               <Icon icon="ph:check-circle-bold" width="40" className="text-blue-500 opacity-20" />
             </div>
@@ -143,7 +143,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Yakında</p>
-                <p className="text-3xl font-bold text-orange-600">4</p>
+                <p className="text-3xl font-bold text-orange-600">3</p>
               </div>
               <Icon icon="ph:rocket-launch-bold" width="40" className="text-orange-500 opacity-20" />
             </div>
@@ -249,7 +249,7 @@ export default function HomePage() {
 
         {/* Footer Info */}
         <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>v1.0.0 - Geliştirme Sürümü | FAZ 1.1 Tamamlandı</p>
+          <p>v1.0.0 - Geliştirme Sürümü | FAZ 1.1, 1.2, 1.3 Tamamlandı</p>
         </div>
       </div>
     </main>
