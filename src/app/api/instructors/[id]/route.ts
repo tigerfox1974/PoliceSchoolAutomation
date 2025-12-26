@@ -58,9 +58,25 @@ export async function PUT(
   try {
     const data = await request.json()
 
+    // Önce eğitmenin var olup olmadığını ve silinmemiş olduğunu kontrol et
+    const existingInstructor = await prisma.instructor.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!existingInstructor) {
+      return NextResponse.json({ error: 'Eğitmen bulunamadı' }, { status: 404 })
+    }
+
+    if (existingInstructor.isDeleted) {
+      return NextResponse.json({ error: 'Silinmiş eğitmen güncellenemez' }, { status: 400 })
+    }
+
+    // tcKimlikNo'yu güncelleme (unique ve değiştirilmemeli)
+    const { tcKimlikNo, ...updateData } = data
+
     const instructor = await prisma.instructor.update({
       where: { id: params.id },
-      data,
+      data: updateData,
     })
 
     return NextResponse.json({ success: true, instructor })

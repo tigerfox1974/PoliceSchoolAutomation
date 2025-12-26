@@ -5,39 +5,15 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { ConfirmDialog, ToastContainer } from '@/shared/components'
-
-interface Instructor {
-  id: string
-  tcKimlikNo: string
-  firstName: string
-  lastName: string
-  email: string | null
-  phone: string | null
-  instructorType: 'CADRE' | 'EXTERNAL'
-  rank: string | null
-  badgeNumber: string | null
-  institution: string | null
-  branch: string | null
-  isActive: boolean
-  courseInstructors: {
-    id: string
-    course: {
-      id: string
-      name: string
-      code: string
-    }
-  }[]
-  _count: {
-    dailyLessons: number
-    instructorTerms: number
-  }
-}
+import { EditInstructorModal } from '@/features/instructors/components'
+import { Instructor } from '@/features/instructors/types'
 
 export default function InstructorDetailPage() {
   const router = useRouter()
   const params = useParams()
   const [instructor, setInstructor] = useState<Instructor | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showEditModal, setShowEditModal] = useState(false)
 
   // Toast notifications
   const [toasts, setToasts] = useState<Array<{
@@ -193,7 +169,7 @@ export default function InstructorDetailPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => showToast('Düzenleme özelliği yakında eklenecek', 'info')}
+              onClick={() => setShowEditModal(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
             >
               <Icon icon="ph:pencil-bold" width="20" />
@@ -308,6 +284,23 @@ export default function InstructorDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      <EditInstructorModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+        }}
+        onSuccess={(message) => {
+          showToast(message, 'success')
+          fetchInstructor()
+          setShowEditModal(false)
+        }}
+        onError={(message) => {
+          showToast(message, 'error')
+        }}
+        instructor={instructor}
+      />
 
       {/* Confirm Dialog */}
       <ConfirmDialog

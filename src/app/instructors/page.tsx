@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { ConfirmDialog, ToastContainer } from '@/shared/components'
-import { InstructorTableView } from '@/features/instructors/components'
+import { InstructorTableView, EditInstructorModal } from '@/features/instructors/components'
 import { useInstructorFilters } from '@/features/instructors/hooks'
 import { Instructor } from '@/features/instructors/types'
 
@@ -86,8 +86,6 @@ export default function InstructorsPage() {
   const handleEditClick = (instructor: Instructor) => {
     setEditingInstructor(instructor)
     setShowEditModal(true)
-    // TODO: Edit modal eklenecek
-    showToast('Düzenleme özelliği yakında eklenecek', 'info')
   }
 
   const handleDeleteInstructor = async (instructor: Instructor) => {
@@ -511,6 +509,25 @@ export default function InstructorsPage() {
           )}
         </>
       )}
+
+      {/* Edit Modal */}
+      <EditInstructorModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingInstructor(null)
+        }}
+        onSuccess={(message) => {
+          showToast(message, 'success')
+          fetchInstructors()
+          setShowEditModal(false)
+          setEditingInstructor(null)
+        }}
+        onError={(message) => {
+          showToast(message, 'error')
+        }}
+        instructor={editingInstructor}
+      />
 
       {/* Confirm Dialog */}
       <ConfirmDialog
