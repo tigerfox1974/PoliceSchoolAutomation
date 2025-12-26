@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Icon } from '@iconify/react'
 
 export default function HomePage() {
@@ -92,7 +93,15 @@ export default function HomePage() {
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="container mx-auto px-6 py-6">
           <div className="flex items-center gap-4">
-            <div className="text-4xl">🚔</div>
+            <div className="relative w-16 h-16 flex-shrink-0">
+              <Image
+                src="/polis-okulu-logo.png"
+                alt="KKTC Polis Okulu Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
             <div>
               <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
                 KKTC Polis Okulu
