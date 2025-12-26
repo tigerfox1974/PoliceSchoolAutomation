@@ -6,7 +6,7 @@ import { Icon } from '@iconify/react'
 
 interface Instructor {
   id: string
-  tcKimlikNo: string
+  tcKimlikNo: string // KKTC Kimlik No (10 hane)
   firstName: string
   lastName: string
   email: string | null

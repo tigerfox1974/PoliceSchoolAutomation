@@ -400,7 +400,7 @@ model Dormitory {
 
 model Instructor {
   id         String  @id @default(cuid())
-  tcKimlikNo String  @unique
+  tcKimlikNo String  @unique // KKTC Kimlik Numarası (10 haneli)
   firstName  String
   lastName   String
   email      String?

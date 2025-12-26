@@ -61,19 +61,27 @@ export async function POST(request: Request) {
     // Validasyon
     if (!tcKimlikNo || !firstName || !lastName || !instructorType) {
       return NextResponse.json(
-        { error: 'TC Kimlik No, ad, soyad ve eğitmen tipi zorunludur' },
+        { error: 'KKTC Kimlik No, ad, soyad ve eğitmen tipi zorunludur' },
         { status: 400 }
       )
     }
 
-    // TC Kimlik No unique kontrolü
+    // KKTC Kimlik No 10 hane kontrolü
+    if (tcKimlikNo.length !== 10 || !/^\d{10}$/.test(tcKimlikNo)) {
+      return NextResponse.json(
+        { error: 'KKTC Kimlik No 10 haneli olmalıdır' },
+        { status: 400 }
+      )
+    }
+
+    // KKTC Kimlik No unique kontrolü
     const existing = await prisma.instructor.findUnique({
       where: { tcKimlikNo },
     })
 
     if (existing) {
       return NextResponse.json(
-        { error: 'Bu TC Kimlik No ile kayıtlı eğitmen var' },
+        { error: 'Bu KKTC Kimlik No ile kayıtlı eğitmen var' },
         { status: 400 }
       )
     }
