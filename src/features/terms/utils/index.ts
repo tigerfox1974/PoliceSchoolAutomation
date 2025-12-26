@@ -84,14 +84,26 @@ export function sortTerms(
       )
       break
     case 'name':
-      result.sort((a, b) => direction * a.name.localeCompare(b.name, 'tr'))
+      result.sort((a, b) =>
+        direction *
+        a.name.localeCompare(b.name, 'tr', {
+          sensitivity: 'base',
+          numeric: true,
+        })
+      )
       break
     case 'status':
       const statusOrder = { ACTIVE: 0, PAUSED: 1, ARCHIVED: 2 }
       result.sort((a, b) => direction * (statusOrder[a.status] - statusOrder[b.status]))
       break
     case 'termType':
-      result.sort((a, b) => direction * a.termType.localeCompare(b.termType))
+      result.sort((a, b) =>
+        direction *
+        a.termType.localeCompare(b.termType, 'tr', {
+          sensitivity: 'base',
+          numeric: true,
+        })
+      )
       break
     case 'duration':
       const durationOrder = { FOUR_MONTHS: 0, SIX_MONTHS: 1 }

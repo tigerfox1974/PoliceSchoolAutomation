@@ -63,7 +63,7 @@ export function useCourseFilters(courses: Course[]) {
       filtered = filtered.filter((course) => (course.fourMonthHours || 0) <= max)
     }
 
-    // Sıralama
+    // Sıralama (Türkçe karakter desteği ile)
     filtered.sort((a, b) => {
       let aValue: any
       let bValue: any
@@ -98,11 +98,18 @@ export function useCourseFilters(courses: Course[]) {
           bValue = b.name
       }
 
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1
-      } else {
-        return aValue < bValue ? 1 : -1
+      // Sayısal değerler için normal karşılaştırma
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortOrder === 'asc' ? aValue - bValue : bValue - aValue
       }
+
+      // String değerler için Türkçe locale-aware sıralama
+      const comparison = aValue.toString().localeCompare(bValue.toString(), 'tr', {
+        sensitivity: 'base',
+        numeric: true,
+      })
+
+      return sortOrder === 'asc' ? comparison : -comparison
     })
 
     return filtered
