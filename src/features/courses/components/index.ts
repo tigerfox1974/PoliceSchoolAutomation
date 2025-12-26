@@ -1,0 +1,2 @@
+export { CourseTableView } from './CourseTableView'
+
