@@ -239,7 +239,28 @@ model Term {
   exams              Exam[]
   dynamicFieldValues DynamicFieldValue[]
 
+  // İlişkiler - TermSettings
+  termSettings TermSettings?
+
   @@map("terms")
+}
+
+// Dönem Ayarları
+model TermSettings {
+  id String @id @default(cuid())
+
+  termId String @unique
+  term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  // Zaman Ayarları
+  lunchBreakDuration Int @default(60) // Öğle yemeği süresi (dakika)
+  etudDuration       Int @default(90) // ETÜD süresi (dakika)
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("term_settings")
 }
 
 // ============================================================================

@@ -24,13 +24,20 @@
 
 ## ✅ TAMAMLANAN ADIMLAR
 
-_Bu bölüm tamamlanan adımlar için kullanılacak_
+- [x] **ADIM 0.1:** Mevcut Prisma şeması incelendi
+- [x] **ADIM 0.2:** SpecialEvent modeli zaten mevcut ✅
+- [x] **ADIM 0.3:** ExternalSpeaker modeli zaten mevcut ✅
+- [x] **ADIM 0.4:** Conference modeli zaten mevcut ✅
+- [x] **ADIM 0.5:** DailyLesson modeli zaten güncellenmiş ✅
+- [x] **ADIM 0.6:** TermSettings modeli eklendi ✅
+- [x] **ADIM 0.7:** Course modelinde conferences ilişkisi zaten mevcut ✅
+- [x] **ADIM 0.9:** Seed dosyası oluşturuldu ✅
 
 ---
 
 ## 🔄 DEVAM EDEN ADIMLAR
 
-### ADIM 0.1: Mevcut Prisma Şemasını İncele
+### ADIM 0.8: Migration Hazırla ve Çalıştır
 
 **Amaç:** Mevcut yapıyı anla, nereye ekleme yapılacağını belirle
 
@@ -62,295 +69,11 @@ Get-Content prisma/schema.prisma
 
 **Amaç:** YOKLAMA, MÜDİRİYET gibi özel etkinlikleri yönet
 
-**Prisma Schema'ya Eklenecek Kod:**
+**Amaç:** Veritabanına yeni tabloları ve alanları ekle
 
-```prisma
-// ===================================
-// ÖZEL ETKİNLİKLER SİSTEMİ
-// ===================================
+**NOT:** Veritabanı bağlantısı gereklidir. Eğer veritabanı çalışmıyorsa, önce PostgreSQL'i başlatın.
 
-enum SpecialEventType {
-  YOKLAMA           // Her Cuma 1. ders (opsiyonel)
-  MANAGEMENT        // Her Cuma 7. ders (Müdüriyet)
-  SOCIAL_SPORTS     // Sosyal ve Sportif Faaliyetler
-  CEREMONY          // Törenler
-  ORIENTATION       // İntibak Haftası
-  OTHER             // Diğer
-}
-
-model SpecialEvent {
-  id                     String             @id @default(uuid())
-  eventType              SpecialEventType
-  eventTitle             String
-  description            String?            @db.Text
-  duration               Int                @default(1) // Kaç ders saati
-  
-  // Zamansal bilgiler
-  dayOfWeek              Int?               // 1=Pazartesi, 5=Cuma (NULL=tüm günler için)
-  slotIndex              Int?               // Hangi ders saati (1-7, NULL=değişken)
-  
-  // Özellikler
-  requiresInstructor     Boolean            @default(false) // Eğitmen ataması gerekli mi?
-  allClassesTogether     Boolean            @default(false) // Tüm sınıflar birlikte mi?
-  countsTowardCurriculum Boolean            @default(false) // Müfredattan sayılır mı?
-  
-  // Yönetimsel bilgiler
-  managedBy              String?            // "Okul Müdürü", "Eğitmen Gözetmenliği"
-  notes                  String?            @db.Text
-  
-  // İlişkiler
-  dailyLessons           DailyLesson[]
-  
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-  
-  @@index([eventType])
-  @@index([dayOfWeek, slotIndex])
-}
-```
-
-**Yapılacaklar:**
-- [ ] Yukarıdaki kodu `prisma/schema.prisma` dosyasına ekle
-- [ ] Dosyayı kaydet
-
-**Ekleme Yeri:**
-- `DutySchedule` modelinden **sonra**
-- `// Future Models` yorumundan **önce**
-
----
-
-### ADIM 0.3: ExternalSpeaker Modelini Ekle
-
-**Amaç:** Dış konuşmacıları yönet
-
-**Prisma Schema'ya Eklenecek Kod:**
-
-```prisma
-// ===================================
-// DIŞ KONUŞMACILAR SİSTEMİ
-// ===================================
-
-model ExternalSpeaker {
-  id              String       @id @default(uuid())
-  firstName       String
-  lastName        String
-  title           String?      // "Prof. Dr.", "Doç. Dr.", "Uzman"
-  organization    String?      // "İstanbul Üniversitesi", "Emniyet Müdürlüğü"
-  department      String?      // "Yangın Mühendisliği", "Hukuk Fakültesi"
-  
-  // İletişim
-  email           String?      @unique
-  phone           String?
-  address         String?      @db.Text
-  
-  // Uzmanlık Alanları (JSON array)
-  expertise       Json?        // ["Yangın Güvenliği", "Afet Yönetimi"]
-  bio             String?      @db.Text
-  
-  // İlişkiler
-  conferences     Conference[]
-  
-  // Yönetim
-  isActive        Boolean      @default(true)
-  notes           String?      @db.Text
-  
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  
-  @@index([lastName, firstName])
-  @@index([organization])
-  @@index([isActive])
-}
-```
-
-**Yapılacaklar:**
-- [ ] Yukarıdaki kodu `prisma/schema.prisma` dosyasına ekle
-- [ ] `SpecialEvent` modelinden **sonra** ekle
-
----
-
-### ADIM 0.4: Conference Modelini Ekle
-
-**Amaç:** Konferansları yönet
-
-**Prisma Schema'ya Eklenecek Kod:**
-
-```prisma
-// ===================================
-// KONFERANS SİSTEMİ
-// ===================================
-
-enum ConferenceStatus {
-  PLANNED
-  CONFIRMED
-  COMPLETED
-  CANCELLED
-}
-
-model Conference {
-  id                     String            @id @default(uuid())
-  conferenceTitle        String
-  topic                  String            @db.Text
-  description            String?           @db.Text
-  
-  // Konuşmacı Bilgileri
-  externalSpeakerId      String?
-  externalSpeaker        ExternalSpeaker?  @relation(fields: [externalSpeakerId], references: [id], onDelete: SetNull)
-  
-  // Zamansal bilgiler
-  scheduledDate          DateTime?         @db.Date
-  duration               Int               @default(2) // Genellikle çift ders (2 saat)
-  startSlot              Int?              // Başlangıç ders saati (genellikle 6)
-  endSlot                Int?              // Bitiş ders saati (genellikle 7)
-  
-  // Hedef kitle (JSON array)
-  targetClasses          Json?             // ["A", "B", "C"] veya ["ALL"]
-  isAllClasses           Boolean           @default(false)
-  
-  // Yer ve ekipman
-  requiresSpecialRoom    Boolean           @default(false)
-  specialRoomType        String?           // "AUDITORIUM", "CONFERENCE_HALL"
-  requiredEquipment      Json?             // ["Projeksiyon", "Ses Sistemi"]
-  
-  // Müfredat
-  countsTowardCurriculum Boolean           @default(false)
-  courseId               String?           // Hangi ders müfredatına sayılır (varsa)
-  course                 Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  
-  // İlişkiler
-  dailyLessons           DailyLesson[]
-  
-  // Yönetim
-  status                 ConferenceStatus  @default(PLANNED)
-  organizerId            String?           // Organize eden kullanıcı ID
-  notes                  String?           @db.Text
-  
-  createdAt              DateTime          @default(now())
-  updatedAt              DateTime          @updatedAt
-  
-  @@index([scheduledDate])
-  @@index([status])
-  @@index([externalSpeakerId])
-  @@index([courseId])
-}
-```
-
-**Yapılacaklar:**
-- [ ] Yukarıdaki kodu `prisma/schema.prisma` dosyasına ekle
-- [ ] `ExternalSpeaker` modelinden **sonra** ekle
-
----
-
-### ADIM 0.5: DailyLesson Modelini Güncelle
-
-**Amaç:** Özel etkinlik, blok ders, fiziksel aktivite alanlarını ekle
-
-**Mevcut DailyLesson Modelini Bul ve Güncelle:**
-
-**EKLEME YERİ:** Mevcut `DailyLesson` modelinin içine aşağıdaki alanları ekle
-
-```prisma
-model DailyLesson {
-  // ... mevcut alanlar ...
-  
-  // ⭐ ÖZEL ETKİNLİK ALANLARI (YENİ)
-  isSpecialEvent         Boolean           @default(false)
-  specialEventId         String?
-  specialEvent           SpecialEvent?     @relation(fields: [specialEventId], references: [id], onDelete: SetNull)
-  conferenceId           String?
-  conference             Conference?       @relation(fields: [conferenceId], references: [id], onDelete: SetNull)
-  
-  // ⭐ BLOK DERS SİSTEMİ (YENİ)
-  isBlockSchedule        Boolean           @default(false)
-  blockDuration          Int?              // Blok ders ise kaç saat (3-5)
-  blockTitle             String?           // "İTFAİYE MESLEK DERSLERİ"
-  blockStartSlot         Int?              // Bloğun başlangıç slotu (1-7)
-  blockEndSlot           Int?              // Bloğun bitiş slotu (1-7)
-  
-  // ⭐ FİZİKSEL AKTİVİTE DERSLERİ (YENİ)
-  isPhysicalActivity     Boolean           @default(false)
-  requiresSpecialArea    Boolean           @default(false) // Spor salonu, atölye, açık alan
-  specialAreaType        String?           // "GYM", "WORKSHOP", "OUTDOOR", "LAB"
-  
-  // ... mevcut alanlar devam eder ...
-}
-```
-
-**Yapılacaklar:**
-- [ ] Mevcut `DailyLesson` modelini bul
-- [ ] Yukarıdaki alanları ekle
-- [ ] `plannedInstructorId` ve `actualInstructorId` alanlarını `String?` (nullable) yap
-
-**Değiştir:**
-```prisma
-plannedInstructorId  String
-actualInstructorId   String
-```
-
-**Şuna:**
-```prisma
-plannedInstructorId  String?  // Nullable - Özel etkinlikler için gerekli değil
-actualInstructorId   String?  // Nullable - Özel etkinlikler için gerekli değil
-```
-
-**İndeksleri Ekle:**
-```prisma
-@@index([isSpecialEvent])
-@@index([isBlockSchedule])
-@@index([specialEventId])
-@@index([conferenceId])
-```
-
----
-
-### ADIM 0.6: TermSettings Modelini Güncelle
-
-**Amaç:** ETÜD saati süresini ekle
-
-**Bul ve Ekle:**
-
-```prisma
-model TermSettings {
-  // ... mevcut alanlar ...
-  
-  lunchBreakDuration Int      @default(60)      // Öğle yemeği süresi (dakika)
-  etudDuration       Int      @default(90)      // YENİ: ETÜD süresi (dakika)
-  
-  // ... devam eder ...
-}
-```
-
-**Yapılacaklar:**
-- [ ] `TermSettings` modelini bul
-- [ ] `etudDuration` alanını ekle
-
----
-
-### ADIM 0.7: Course Modelini Güncelle
-
-**Amaç:** Conference ilişkisini ekle
-
-**Bul ve Ekle:**
-
-```prisma
-model Course {
-  // ... mevcut alanlar ...
-  
-  termCoursePlans       TermCoursePlan[]
-  courseInstructors     CourseInstructor[]
-  conferences           Conference[]       // YENİ: Bu derse bağlı konferanslar
-  
-  // ... devam eder ...
-}
-```
-
-**Yapılacaklar:**
-- [ ] `Course` modelini bul
-- [ ] `conferences` ilişkisini ekle
-
----
-
-### ADIM 0.8: Migration Hazırla ve Çalıştır
+**Komutlar:**
 
 **Amaç:** Veritabanına yeni tabloları ve alanları ekle
 
@@ -403,155 +126,26 @@ migrations/
 
 ---
 
-### ADIM 0.9: Seed Verilerini Güncelle
+### ADIM 0.9: Seed Verilerini Çalıştır
 
 **Amaç:** Test için örnek özel etkinlikler oluştur
 
-**Dosya:** `prisma/seed.ts`
-
-**Eklenecek Kod:**
-
-```typescript
-// Özel Etkinlikler (YOKLAMA, MÜDİRİYET)
-const specialEvents = await Promise.all([
-  // YOKLAMA - Her Cuma 1. ders
-  prisma.specialEvent.create({
-    data: {
-      eventType: 'YOKLAMA',
-      eventTitle: 'Haftalık Yoklama',
-      description: 'Çevremizi Tanıyalım, Okul Kuralları ve Dilekçe Yazma',
-      duration: 1,
-      dayOfWeek: 5, // Cuma
-      slotIndex: 1,
-      requiresInstructor: false,
-      allClassesTogether: true,
-      countsTowardCurriculum: false,
-      managedBy: 'Eğitmen Gözetmenliği',
-    },
-  }),
-  
-  // MÜDİRİYET - Her Cuma 7. ders
-  prisma.specialEvent.create({
-    data: {
-      eventType: 'MANAGEMENT',
-      eventTitle: 'Müdüriyet Toplantısı',
-      description: 'Haftalık değerlendirme ve duyurular',
-      duration: 1,
-      dayOfWeek: 5, // Cuma
-      slotIndex: 7,
-      requiresInstructor: false,
-      allClassesTogether: true,
-      countsTowardCurriculum: false,
-      managedBy: 'Okul Müdürü',
-    },
-  }),
-  
-  // SOSYAL VE SPORTİF FAALİYETLER
-  prisma.specialEvent.create({
-    data: {
-      eventType: 'SOCIAL_SPORTS',
-      eventTitle: 'Sosyal ve Sportif Faaliyetler',
-      description: 'Öğrencilerin sosyal ve sportif gelişimi',
-      duration: 2,
-      requiresInstructor: false,
-      allClassesTogether: false,
-      countsTowardCurriculum: false,
-      notes: 'Genellikle 6. ve 7. ders saatlerinde',
-    },
-  }),
-]);
-
-console.log('✅ Özel Etkinlikler oluşturuldu:', specialEvents.length);
-
-// Dış Konuşmacılar
-const externalSpeakers = await Promise.all([
-  prisma.externalSpeaker.create({
-    data: {
-      firstName: 'Ahmet',
-      lastName: 'Yılmaz',
-      title: 'Prof. Dr.',
-      organization: 'İstanbul Üniversitesi',
-      department: 'Yangın Mühendisliği',
-      email: 'ahmet.yilmaz@istanbul.edu.tr',
-      phone: '+90 212 555 1234',
-      expertise: ['Yangın Güvenliği', 'Afet Yönetimi', 'İlk Yardım'],
-      bio: 'Yangın güvenliği alanında 20 yıllık deneyime sahip akademisyen',
-      isActive: true,
-    },
-  }),
-  
-  prisma.externalSpeaker.create({
-    data: {
-      firstName: 'Mehmet',
-      lastName: 'Kaya',
-      title: 'Albay',
-      organization: 'Güvenlik Kuvvetleri Komutanlığı',
-      department: 'Taktik Eğitim',
-      phone: '+90 312 555 5678',
-      expertise: ['Askeri Taktik', 'Güvenlik', 'Disiplin'],
-      bio: 'Güvenlik kuvvetlerinde 25 yıl görev yapmış deneyimli subay',
-      isActive: true,
-    },
-  }),
-]);
-
-console.log('✅ Dış Konuşmacılar oluşturuldu:', externalSpeakers.length);
-
-// Konferanslar
-const conferences = await Promise.all([
-  prisma.conference.create({
-    data: {
-      conferenceTitle: 'Yangın ve Tabii Afetler',
-      topic: 'Yangın güvenliği önlemleri ve afet durumunda alınacak tedbirler',
-      description: 'Yangın söndürme teknikleri, afet yönetimi ve ilk müdahale',
-      externalSpeakerId: externalSpeakers[0].id,
-      duration: 2,
-      startSlot: 6,
-      endSlot: 7,
-      isAllClasses: true,
-      requiresSpecialRoom: true,
-      specialRoomType: 'AUDITORIUM',
-      requiredEquipment: ['Projeksiyon', 'Ses Sistemi', 'Mikrofon'],
-      countsTowardCurriculum: true,
-      status: 'PLANNED',
-    },
-  }),
-  
-  prisma.conference.create({
-    data: {
-      conferenceTitle: 'Güvenlik Kuvvetleri Komutanlığı Tanıtımı',
-      topic: 'Güvenlik kuvvetlerinin görevleri, yetkileri ve organizasyon yapısı',
-      description: 'Askeri hiyerarşi, disiplin kuralları ve taktik eğitim',
-      externalSpeakerId: externalSpeakers[1].id,
-      duration: 2,
-      startSlot: 6,
-      endSlot: 7,
-      isAllClasses: true,
-      requiresSpecialRoom: true,
-      specialRoomType: 'CONFERENCE_HALL',
-      status: 'PLANNED',
-    },
-  }),
-]);
-
-console.log('✅ Konferanslar oluşturuldu:', conferences.length);
-```
-
-**Yapılacaklar:**
-- [ ] `prisma/seed.ts` dosyasını aç
-- [ ] Yukarıdaki kodu `main()` fonksiyonunun içine ekle
-- [ ] En sona, diğer seed işlemlerinden **sonra** ekle
+**NOT:** Seed dosyası zaten oluşturuldu (`prisma/seed.ts`). Veritabanı bağlantısı gereklidir.
 
 **Seed'i Çalıştır:**
-```powershell
+```bash
+npm run db:seed
+# veya
 npx prisma db seed
 ```
 
 **Beklenen Çıktı:**
 ```
+🌱 Seed işlemi başlatılıyor...
 ✅ Özel Etkinlikler oluşturuldu: 3
 ✅ Dış Konuşmacılar oluşturuldu: 2
 ✅ Konferanslar oluşturuldu: 2
+🎉 Seed işlemi tamamlandı!
 ```
 
 ---
@@ -605,16 +199,16 @@ ORDER BY ordinal_position;
 ## 📋 FAZ 0 KONTROL LİSTESİ
 
 **Tamamlanması Gerekenler:**
-- [ ] **ADIM 0.1:** Mevcut şemayı incele
-- [ ] **ADIM 0.2:** SpecialEvent modelini ekle
-- [ ] **ADIM 0.3:** ExternalSpeaker modelini ekle
-- [ ] **ADIM 0.4:** Conference modelini ekle
-- [ ] **ADIM 0.5:** DailyLesson modelini güncelle
-- [ ] **ADIM 0.6:** TermSettings modelini güncelle
-- [ ] **ADIM 0.7:** Course modelini güncelle
-- [ ] **ADIM 0.8:** Migration çalıştır
-- [ ] **ADIM 0.9:** Seed verilerini güncelle
-- [ ] **ADIM 0.10:** Veritabanını test et
+- [x] **ADIM 0.1:** Mevcut şemayı incele ✅
+- [x] **ADIM 0.2:** SpecialEvent modelini ekle ✅ (Zaten mevcut)
+- [x] **ADIM 0.3:** ExternalSpeaker modelini ekle ✅ (Zaten mevcut)
+- [x] **ADIM 0.4:** Conference modelini ekle ✅ (Zaten mevcut)
+- [x] **ADIM 0.5:** DailyLesson modelini güncelle ✅ (Zaten güncellenmiş)
+- [x] **ADIM 0.6:** TermSettings modelini güncelle ✅ (Eklendi)
+- [x] **ADIM 0.7:** Course modelini güncelle ✅ (Zaten mevcut)
+- [ ] **ADIM 0.8:** Migration çalıştır ⏳ (Veritabanı bağlantısı gerekiyor)
+- [x] **ADIM 0.9:** Seed verilerini güncelle ✅ (Dosya oluşturuldu)
+- [ ] **ADIM 0.10:** Veritabanını test et ⏳ (Veritabanı bağlantısı gerekiyor)
 
 **FAZ 0 Başarı Kriterleri:**
 - ✅ Tüm yeni modeller veritabanına eklendi
@@ -692,5 +286,11 @@ npx prisma generate
 ---
 
 **SON GÜNCELLEME:** 25 Aralık 2025  
-**DURUM:** FAZ 0 - Hazır  
-**SONRAKİ ADIM:** ADIM 0.1'i başlat
+**DURUM:** FAZ 0 - %80 Tamamlandı  
+**SONRAKİ ADIM:** Veritabanı bağlantısını kontrol et ve migration çalıştır (ADIM 0.8)
+
+**Yapılanlar:**
+- ✅ TermSettings modeli eklendi
+- ✅ Seed dosyası oluşturuldu (`prisma/seed.ts`)
+- ✅ package.json'a seed konfigürasyonu eklendi
+- ✅ Prisma schema doğrulandı
