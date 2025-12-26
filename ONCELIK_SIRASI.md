@@ -79,28 +79,28 @@
 
 #### Frontend - UI Sayfaları
 
-- [ ] **1.1.8** `/courses` - Ana liste sayfası
-  - Tablo görünümü (name, code, hours, lab, scope)
+- [x] **1.1.8** `/courses` - Ana liste sayfası ✅
+  - Kart görünümü (name, code, hours, lab, scope)
   - Filtreleme (programScope, requiresLab)
   - Arama (name, code)
   - "Yeni Ders" butonu
   
-- [ ] **1.1.9** `/courses/new` - Yeni ders oluştur
+- [x] **1.1.9** `/courses/new` - Yeni ders oluştur ✅
   - Form alanları:
     * Ders Adı (string, required)
     * Ders Kodu (string, required, unique)
-    * 4 Aylık Hedef Saat (number, required)
-    * 6 Aylık Hedef Saat (number, required)
-    * Lab Gerekli mi? (boolean)
+    * 4 Aylık Hedef Saat (number)
+    * 6 Aylık Hedef Saat (number)
+    * Lab Gerekli mi? (checkbox)
     * Program Kapsamı (dropdown: Ortak/Polis/İtfaiye)
   - Validasyon
-  - Toast bildirimleri
+  - Alert bildirimleri
   
-- [ ] **1.1.10** `/courses/{id}` - Ders detay sayfası
+- [x] **1.1.10** `/courses/{id}` - Ders detay sayfası ✅
+  - Görüntüleme modu
   - Düzenleme formu
   - Alt ders listesi
-  - Atanmış eğitmenler
-  - İlerleme istatistikleri (planlanan/gerçekleşen)
+  - Silme fonksiyonu
   
 - [ ] **1.1.11** Alt ders modal komponenti
   - Parent derse alt ders ekleme
