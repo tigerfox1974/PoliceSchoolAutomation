@@ -8,7 +8,7 @@ export async function GET(request: Request) {
     const instructorType = searchParams.get('type') // CADRE, EXTERNAL
 
     const where: any = {
-      isDeleted: false,
+      isDeleted: false, // Silinmiş eğitmenleri gösterme
     }
 
     if (instructorType) {

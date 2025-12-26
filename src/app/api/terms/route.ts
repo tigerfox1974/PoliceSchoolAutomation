@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     const terms = await prisma.term.findMany({
+      where: {
+        isDeleted: false, // Silinmiş dönemleri gösterme
+      },
       include: {
         _count: {
           select: {

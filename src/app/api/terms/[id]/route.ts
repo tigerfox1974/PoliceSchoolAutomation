@@ -102,14 +102,19 @@ export async function PATCH(
   }
 }
 
-// Dönemi sil
+// Dönemi sil (Soft Delete)
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.term.delete({
+    // Soft delete kullan (isDeleted = true)
+    await prisma.term.update({
       where: { id: params.id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
     })
 
     return NextResponse.json({ success: true })
