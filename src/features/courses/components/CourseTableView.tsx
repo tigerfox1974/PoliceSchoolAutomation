@@ -156,7 +156,8 @@ export function CourseTableView({ courses, sortBy, sortOrder, onSort, onDelete }
                   <div className="flex items-center justify-end gap-2">
                     <Link
                       href={`/courses/${course.id}`}
-                      className="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400"
+                      className="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400 transition-colors"
+                      title="Detay"
                     >
                       <Icon icon="ph:eye-bold" width="18" />
                     </Link>
@@ -165,7 +166,8 @@ export function CourseTableView({ courses, sortBy, sortOrder, onSort, onDelete }
                         e.stopPropagation()
                         onDelete(course)
                       }}
-                      className="text-red-600 hover:text-red-900 dark:hover:text-red-400"
+                      className="text-red-600 hover:text-red-900 dark:hover:text-red-400 transition-colors"
+                      title="Sil"
                     >
                       <Icon icon="ph:trash-bold" width="18" />
                     </button>
