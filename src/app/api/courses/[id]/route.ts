@@ -38,23 +38,17 @@ export async function GET(
                 id: true,
                 firstName: true,
                 lastName: true,
-                title: true,
+                rank: true,
                 instructorType: true,
               },
             },
           },
         },
-        term: {
-          select: {
-            id: true,
-            name: true,
-            termCode: true,
-          },
-        },
         _count: {
           select: {
             dailyLessons: true,
-            exams: true,
+            subCourses: true,
+            courseInstructors: true,
           },
         },
       },

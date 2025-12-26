@@ -20,7 +20,8 @@ interface Course {
   courseInstructors: any[]
   _count: {
     dailyLessons: number
-    exams: number
+    subCourses: number
+    courseInstructors: number
   }
 }
 
