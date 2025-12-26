@@ -483,13 +483,24 @@ model Course {
   id          String     @id @default(cuid())
   code        String // "TR101", "CZH201"
   name        String // "Trafik Mevzuatı"
-  targetHours Int // Toplam hedef saat
+  targetHours Int? // Toplam hedef saat (eski alan, opsiyonel)
+  
+  // Dönem bazlı hedef saatler
+  fourMonthHours  Int? // 4 aylık dönem için hedef saat
+  sixMonthHours   Int? // 6 aylık dönem için hedef saat
+  
   credit      Int? // Kredi (varsa)
   courseType  CourseType @default(STANDARD)
   description String?
 
-  termId String
-  term   Term   @relation(fields: [termId], references: [id])
+  // Program kapsamı
+  programScope String @default("COMMON") // COMMON, POLIS_ONLY, ITFAIYE_ONLY
+  
+  // Lab gereksinimi
+  requiresLab Boolean @default(false) // Bilgisayar Lab gerekli mi?
+
+  termId String?
+  term   Term?   @relation(fields: [termId], references: [id])
 
   // Üst ders ilişkisi (Alt dersler için)
   parentCourseId String?
@@ -514,7 +525,9 @@ model Course {
   attendances       Attendance[]
   conferences       Conference[] // Bu derse bağlı konferanslar
 
-  @@unique([termId, code])
+  @@unique([code])
+  @@index([programScope])
+  @@index([requiresLab])
   @@map("courses")
 }
 
