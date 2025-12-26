@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { CourseTableView } from '@/features/courses/components'
@@ -35,6 +36,7 @@ interface Course {
 }
 
 export default function CoursesPage() {
+  const router = useRouter()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilterModal, setShowFilterModal] = useState(false)
@@ -483,6 +485,43 @@ export default function CoursesPage() {
                       </span>
                     </div>
                   </Link>
+
+                  {/* İşlem Butonları */}
+                  <div className="mt-4 pt-4 border-t flex gap-2">
+                    <Link
+                      href={`/courses/${course.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                      title="Detay"
+                    >
+                      <Icon icon="ph:eye-bold" width="16" />
+                      Detay
+                    </Link>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        router.push(`/courses/${course.id}`)
+                      }}
+                      className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                      title="Düzenle"
+                    >
+                      <Icon icon="ph:pencil-bold" width="16" />
+                      Düzenle
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleDeleteCourse(course)
+                      }}
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
+                      title="Sil"
+                    >
+                      <Icon icon="ph:trash-bold" width="16" />
+                      Sil
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -499,6 +538,7 @@ export default function CoursesPage() {
                   setSortOrder('asc')
                 }
               }}
+              onEdit={(course) => router.push(`/courses/${course.id}`)}
               onDelete={handleDeleteCourse}
             />
           )}

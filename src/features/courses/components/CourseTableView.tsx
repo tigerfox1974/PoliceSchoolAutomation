@@ -21,10 +21,11 @@ interface Props {
   sortBy: string
   sortOrder: 'asc' | 'desc'
   onSort: (field: string) => void
+  onEdit: (course: Course) => void
   onDelete: (course: Course) => void
 }
 
-export function CourseTableView({ courses, sortBy, sortOrder, onSort, onDelete }: Props) {
+export function CourseTableView({ courses, sortBy, sortOrder, onSort, onEdit, onDelete }: Props) {
   const scopeLabels = {
     COMMON: '🔵 Ortak',
     POLIS_ONLY: '🟢 Polis',
@@ -161,6 +162,16 @@ export function CourseTableView({ courses, sortBy, sortOrder, onSort, onDelete }
                     >
                       <Icon icon="ph:eye-bold" width="18" />
                     </Link>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEdit(course)
+                      }}
+                      className="text-green-600 hover:text-green-900 dark:hover:text-green-400 transition-colors"
+                      title="Düzenle"
+                    >
+                      <Icon icon="ph:pencil-bold" width="18" />
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
