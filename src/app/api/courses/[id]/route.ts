@@ -44,15 +44,11 @@ export async function GET(
             },
           },
         },
-        termCoursePlans: {
-          include: {
-            term: {
-              select: {
-                id: true,
-                name: true,
-                termCode: true,
-              },
-            },
+        term: {
+          select: {
+            id: true,
+            name: true,
+            termCode: true,
           },
         },
         _count: {
@@ -191,8 +187,8 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            termCoursePlans: true,
             dailyLessons: true,
+            subCourses: true,
           },
         },
       },
@@ -206,15 +202,7 @@ export async function DELETE(
     }
 
     // Aktif programda kullanılıyor mu kontrol et
-    if (existingCourse._count.termCoursePlans > 0) {
-      return NextResponse.json(
-        { 
-          error: 'Bu ders aktif bir dönem planında kullanılıyor. Önce dönem planından kaldırın.',
-          code: 'COURSE_IN_USE'
-        },
-        { status: 400 }
-      )
-    }
+    // Not: termCoursePlans henüz yok, dailyLessons kontrolü yeterli
 
     if (existingCourse._count.dailyLessons > 0) {
       return NextResponse.json(

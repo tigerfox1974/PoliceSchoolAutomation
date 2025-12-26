@@ -26,8 +26,9 @@ interface Course {
     weightPercentage: number | null
   }[]
   _count: {
-    termCoursePlans: number
+    subCourses: number
     courseInstructors: number
+    dailyLessons: number
   }
 }
 
@@ -261,7 +262,7 @@ export default function CoursesPage() {
                     👨‍🏫 {course._count.courseInstructors} eğitmen
                   </span>
                   <span className="text-gray-600 dark:text-gray-400">
-                    📅 {course._count.termCoursePlans} dönem
+                    📝 {course._count.dailyLessons} ders kaydı
                   </span>
                 </div>
               </Link>

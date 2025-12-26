@@ -43,8 +43,9 @@ export async function GET(request: Request) {
         },
         _count: {
           select: {
-            termCoursePlans: true,
+            subCourses: true,
             courseInstructors: true,
+            dailyLessons: true,
           },
         },
       },
