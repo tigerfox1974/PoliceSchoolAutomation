@@ -1,20 +1,6 @@
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-
-interface Course {
-  id: string
-  name: string
-  code: string
-  fourMonthHours: number | null
-  sixMonthHours: number | null
-  requiresLab: boolean
-  programScope: 'COMMON' | 'POLIS_ONLY' | 'ITFAIYE_ONLY'
-  _count: {
-    subCourses: number
-    courseInstructors: number
-    dailyLessons: number
-  }
-}
+import { Course } from '../types'
 
 interface Props {
   courses: Course[]

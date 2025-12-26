@@ -4,42 +4,51 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-import { CourseTableView } from '@/features/courses/components'
+import { ConfirmDialog, ToastContainer } from '@/shared/components'
+import { CourseTableView, EditCourseModal } from '@/features/courses/components'
 import { useCourseFilters } from '@/features/courses/hooks'
-
-interface Course {
-  id: string
-  name: string
-  code: string
-  fourMonthHours: number | null
-  sixMonthHours: number | null
-  requiresLab: boolean
-  programScope: 'COMMON' | 'POLIS_ONLY' | 'ITFAIYE_ONLY'
-  credit: number | null
-  description: string | null
-  parentCourse: {
-    id: string
-    name: string
-    code: string
-  } | null
-  subCourses: {
-    id: string
-    name: string
-    code: string
-    weightPercentage: number | null
-  }[]
-  _count: {
-    subCourses: number
-    courseInstructors: number
-    dailyLessons: number
-  }
-}
+import { Course } from '@/features/courses/types'
 
 export default function CoursesPage() {
   const router = useRouter()
   const [courses, setCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilterModal, setShowFilterModal] = useState(false)
+
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null)
+
+  // Confirm dialog states
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type: 'danger' | 'warning' | 'info'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  })
+
+  // Toast notifications
+  const [toasts, setToasts] = useState<Array<{
+    id: string
+    message: string
+    type: 'success' | 'error' | 'info' | 'warning'
+  }>>([])
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    const id = Date.now().toString()
+    setToasts(prev => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   // useCourseFilters hook - filtreleme, sıralama ve görünüm yönetimi
   const {
@@ -73,24 +82,36 @@ export default function CoursesPage() {
     }
   }
 
+  const handleEditClick = (course: Course) => {
+    setEditingCourse(course)
+    setShowEditModal(true)
+  }
+
   const handleDeleteCourse = async (course: Course) => {
-    if (!confirm(`"${course.name}" dersini silmek istediğinizden emin misiniz?`)) return
+    setConfirmDialog({
+      isOpen: true,
+      title: '🗑️ Dersi Sil',
+      message: `"${course.name}" dersini silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz!`,
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/courses/${course.id}`, {
+            method: 'DELETE',
+          })
 
-    try {
-      const res = await fetch(`/api/courses/${course.id}`, {
-        method: 'DELETE',
-      })
-
-      if (res.ok) {
-        alert('✅ Ders silindi!')
-        fetchCourses()
-      } else {
-        const data = await res.json()
-        alert('❌ ' + (data.error || 'Silinemedi'))
-      }
-    } catch (error) {
-      alert('❌ Sunucu hatası')
-    }
+          if (res.ok) {
+            showToast('Ders başarıyla silindi', 'success')
+            fetchCourses()
+          } else {
+            const data = await res.json()
+            showToast(data.error || 'Ders silinemedi', 'error')
+          }
+        } catch (error) {
+          console.error('Ders silme hatası:', error)
+          showToast('Sunucu hatası', 'error')
+        }
+      },
+    })
   }
 
   const scopeLabels = {
@@ -115,6 +136,11 @@ export default function CoursesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Toast Notifications */}
+      <ToastContainer 
+        toasts={toasts.map(toast => ({ ...toast, onClose: removeToast }))} 
+      />
+
       <div className="flex justify-between items-center mb-8">
         <div>
           <Link href="/" className="text-blue-600 hover:underline mb-2 inline-block">
@@ -492,7 +518,6 @@ export default function CoursesPage() {
                       href={`/courses/${course.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                      title="Detay"
                     >
                       <Icon icon="ph:eye-bold" width="16" />
                       Detay
@@ -501,10 +526,9 @@ export default function CoursesPage() {
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        router.push(`/courses/${course.id}`)
+                        handleEditClick(course)
                       }}
                       className="flex-1 bg-green-500 hover:bg-green-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                      title="Düzenle"
                     >
                       <Icon icon="ph:pencil-bold" width="16" />
                       Düzenle
@@ -516,7 +540,6 @@ export default function CoursesPage() {
                         handleDeleteCourse(course)
                       }}
                       className="flex-1 bg-red-500 hover:bg-red-600 text-white text-sm py-2 px-3 rounded transition-colors flex items-center justify-center gap-1"
-                      title="Sil"
                     >
                       <Icon icon="ph:trash-bold" width="16" />
                       Sil
@@ -538,12 +561,41 @@ export default function CoursesPage() {
                   setSortOrder('asc')
                 }
               }}
-              onEdit={(course) => router.push(`/courses/${course.id}`)}
+              onEdit={handleEditClick}
               onDelete={handleDeleteCourse}
             />
           )}
         </>
       )}
+
+      {/* Edit Modal */}
+      <EditCourseModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false)
+          setEditingCourse(null)
+        }}
+        onSuccess={(message) => {
+          showToast(message, 'success')
+          fetchCourses()
+          setShowEditModal(false)
+          setEditingCourse(null)
+        }}
+        onError={(message) => {
+          showToast(message, 'error')
+        }}
+        course={editingCourse}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+      />
     </div>
   )
 }
