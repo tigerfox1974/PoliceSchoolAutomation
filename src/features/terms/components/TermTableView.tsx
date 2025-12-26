@@ -24,78 +24,98 @@ export default function TermTableView({
   onStatusChange,
   onDelete,
 }: TermTableViewProps) {
-  const renderSortButton = (field: SortOption, label: string) => (
-    <button
-      onClick={() => onSort(field)}
-      className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-    >
-      {label}
-      <span className="text-xs">
-        {sortBy === field && (sortOrder === 'asc' ? '↑' : '↓')}
-        {sortBy !== field && '↕'}
-      </span>
-    </button>
-  )
+  // Modern SortIcon komponenti (CourseTableView ile aynı)
+  const SortIcon = ({ field }: { field: SortOption }) => {
+    if (sortBy !== field) {
+      return <Icon icon="ph:arrows-down-up-bold" width="14" className="text-gray-400" />
+    }
+    return sortOrder === 'asc' ? (
+      <Icon icon="ph:arrow-up-bold" width="14" className="text-blue-600" />
+    ) : (
+      <Icon icon="ph:arrow-down-bold" width="14" className="text-blue-600" />
+    )
+  }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+          <thead className="bg-gray-50 dark:bg-gray-900 border-b">
             <tr>
-              <th className="px-4 py-3 text-left">
-                {renderSortButton('status', 'Durum')}
+              <th
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('status')}
+              >
+                <div className="flex items-center gap-1">
+                  Durum
+                  <SortIcon field="status" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-left">
-                {renderSortButton('name', 'Dönem Adı')}
+              <th
+                className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('name')}
+              >
+                <div className="flex items-center gap-1">
+                  Dönem Adı
+                  <SortIcon field="name" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-left">
-                {renderSortButton('termType', 'Tip')}
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('termType')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Tip
+                  <SortIcon field="termType" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-left">
-                {renderSortButton('duration', 'Süre')}
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('duration')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Süre
+                  <SortIcon field="duration" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-left">
-                {renderSortButton('endDate', 'Bitiş Tarihi')}
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('endDate')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Bitiş Tarihi
+                  <SortIcon field="endDate" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-center">
-                <button
-                  onClick={() => onSort('students')}
-                  className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
-                >
-                  👨‍🎓 Öğrenci
-                  <span className="text-xs">
-                    {sortBy === 'students' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    {sortBy !== 'students' && '↕'}
-                  </span>
-                </button>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('students')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Öğrenci
+                  <SortIcon field="students" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-center">
-                <button
-                  onClick={() => onSort('classes')}
-                  className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
-                >
-                  🏫 Sınıf
-                  <span className="text-xs">
-                    {sortBy === 'classes' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    {sortBy !== 'classes' && '↕'}
-                  </span>
-                </button>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('classes')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Sınıf
+                  <SortIcon field="classes" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-center">
-                <button
-                  onClick={() => onSort('instructors')}
-                  className="flex items-center gap-2 font-semibold text-sm text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mx-auto"
-                >
-                  👨‍🏫 Eğitmen
-                  <span className="text-xs">
-                    {sortBy === 'instructors' && (sortOrder === 'asc' ? '↑' : '↓')}
-                    {sortBy !== 'instructors' && '↕'}
-                  </span>
-                </button>
+              <th
+                className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => onSort('instructors')}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  Eğitmen
+                  <SortIcon field="instructors" />
+                </div>
               </th>
-              <th className="px-4 py-3 text-right">
-                <span className="font-semibold text-sm text-gray-700 dark:text-gray-200">İşlemler</span>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                İşlemler
               </th>
             </tr>
           </thead>
@@ -104,8 +124,8 @@ export default function TermTableView({
               const statusConfig = getStatusConfig(term.status)
 
               return (
-                <tr key={term.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                  <td className="px-4 py-3">
+                <tr key={term.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <span className={`${statusConfig.color} text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1 w-fit`}>
                       <span>{statusConfig.icon}</span>
                       <span>{statusConfig.label}</span>
@@ -117,80 +137,108 @@ export default function TermTableView({
                       <div className="text-xs text-gray-500 dark:text-gray-400">{term.termCode}</div>
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-center text-sm">
                     {term.termType === 'POLICE' ? '🚔 Polis' : '🚒 İtfaiye'}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-center text-sm">
                     {term.duration === 'FOUR_MONTHS' ? '4 Ay' : '6 Ay'}
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-center text-sm">
                     {new Date(term.endDate).toLocaleDateString('tr-TR')}
                   </td>
-                  <td className="px-4 py-3 text-center text-sm font-medium">
-                    {term._count.students}
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-sm font-medium">
+                      {term._count.students}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-center text-sm font-medium">
-                    {term._count.classes}
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-sm font-medium">
+                      {term._count.classes}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-center text-sm font-medium">
-                    {term._count.instructorTerms}
+                  <td className="px-4 py-3 text-center">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-sm font-medium">
+                      {term._count.instructorTerms}
+                    </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-2">
+                      {/* Düzenle */}
                       <button
-                        onClick={() => onEdit(term)}
-                        className="px-3 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEdit(term)
+                        }}
+                        className="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400 transition-colors"
                         title="Düzenle"
                       >
-                        <Icon icon="ph:pencil-bold" width="20" />
+                        <Icon icon="ph:pencil-bold" width="18" />
                       </button>
 
+                      {/* Durum Değiştirme */}
                       {term.status === 'ACTIVE' && (
                         <button
-                          onClick={() => onStatusChange(term.id, term.name, 'PAUSED')}
-                          className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(term.id, term.name, 'PAUSED')
+                          }}
+                          className="text-orange-600 hover:text-orange-900 dark:hover:text-orange-400 transition-colors"
                           title="Duraklat"
                         >
-                          <Icon icon="ph:pause-bold" width="20" />
+                          <Icon icon="ph:pause-bold" width="18" />
                         </button>
                       )}
 
                       {term.status === 'PAUSED' && (
                         <button
-                          onClick={() => onStatusChange(term.id, term.name, 'ACTIVE')}
-                          className="px-3 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(term.id, term.name, 'ACTIVE')
+                          }}
+                          className="text-green-600 hover:text-green-900 dark:hover:text-green-400 transition-colors"
                           title="Aktifleştir"
                         >
-                          <Icon icon="ph:play-bold" width="20" />
+                          <Icon icon="ph:play-bold" width="18" />
                         </button>
                       )}
 
                       {term.status === 'ARCHIVED' && (
                         <button
-                          onClick={() => onStatusChange(term.id, term.name, 'ACTIVE')}
-                          className="px-3 py-2.5 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(term.id, term.name, 'ACTIVE')
+                          }}
+                          className="text-green-600 hover:text-green-900 dark:hover:text-green-400 transition-colors"
                           title="Geri Al"
                         >
-                          <Icon icon="ph:arrow-counter-clockwise-bold" width="20" />
+                          <Icon icon="ph:arrow-counter-clockwise-bold" width="18" />
                         </button>
                       )}
 
+                      {/* Arşivle */}
                       {term.status !== 'ARCHIVED' && (
                         <button
-                          onClick={() => onStatusChange(term.id, term.name, 'ARCHIVED')}
-                          className="px-3 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(term.id, term.name, 'ARCHIVED')
+                          }}
+                          className="text-gray-600 hover:text-gray-900 dark:hover:text-gray-400 transition-colors"
                           title="Arşivle"
                         >
-                          <Icon icon="ph:archive-bold" width="20" />
+                          <Icon icon="ph:archive-bold" width="18" />
                         </button>
                       )}
 
+                      {/* Sil */}
                       <button
-                        onClick={() => onDelete(term)}
-                        className="px-3 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onDelete(term)
+                        }}
+                        className="text-red-600 hover:text-red-900 dark:hover:text-red-400 transition-colors"
                         title="Sil"
                       >
-                        <Icon icon="ph:trash-bold" width="20" />
+                        <Icon icon="ph:trash-bold" width="18" />
                       </button>
                     </div>
                   </td>
