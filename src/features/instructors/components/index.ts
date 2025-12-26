@@ -1,0 +1,2 @@
+export { InstructorTableView } from './InstructorTableView'
+
