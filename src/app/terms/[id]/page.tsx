@@ -126,6 +126,22 @@ export default function TermDetailPage() {
         </div>
       </div>
 
+      {/* Hızlı Erişim Butonları */}
+      <div className="mb-8 flex gap-4">
+        <Link
+          href={`/terms/${params.id}/settings`}
+          className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 flex items-center gap-2 font-medium"
+        >
+          ⚙️ Dönem Ayarları
+        </Link>
+        <Link
+          href={`/terms/${params.id}/classes`}
+          className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium"
+        >
+          🏫 Sınıf Yönetimi
+        </Link>
+      </div>
+
       {/* Sınıf Yönetimi (DÖNEM ODAKLI) */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
         <div className="flex justify-between items-center mb-6">

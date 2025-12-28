@@ -39,7 +39,7 @@ interface TimeSlotPreview {
 export default function TermSettingsPage() {
   const params = useParams()
   const router = useRouter()
-  const termId = params.id as string
+  const termId = Array.isArray(params.id) ? params.id[0] : (params.id as string)
 
   const [term, setTerm] = useState<Term | null>(null)
   const [settings, setSettings] = useState<TermSettings | null>(null)
@@ -155,8 +155,10 @@ export default function TermSettingsPage() {
   }
 
   useEffect(() => {
-    fetchTerm()
-    fetchSettings()
+    if (termId) {
+      fetchTerm()
+      fetchSettings()
+    }
   }, [termId])
 
   const fetchTerm = async () => {
@@ -229,6 +231,17 @@ export default function TermSettingsPage() {
     handleChange('workingDays', updated)
   }
 
+  if (!termId) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">Geçersiz dönem ID</div>
+        <Link href="/terms" className="text-blue-600 hover:underline mt-4 inline-block">
+          ← Dönemlere Dön
+        </Link>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -237,10 +250,24 @@ export default function TermSettingsPage() {
     )
   }
 
-  if (!term || !settings) {
+  if (!term) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-red-600">Dönem veya ayarlar bulunamadı</div>
+        <div className="text-center text-red-600">Dönem bulunamadı</div>
+        <Link href="/terms" className="text-blue-600 hover:underline mt-4 inline-block">
+          ← Dönemlere Dön
+        </Link>
+      </div>
+    )
+  }
+
+  if (!settings) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center text-red-600">Ayarlar yüklenemedi</div>
+        <Link href={`/terms/${termId}`} className="text-blue-600 hover:underline mt-4 inline-block">
+          ← Döneme Dön
+        </Link>
       </div>
     )
   }
