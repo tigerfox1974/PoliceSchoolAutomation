@@ -204,6 +204,10 @@ export default function TermSettingsPage() {
       if (res.ok) {
         showToast('✅ Ayarlar başarıyla kaydedildi!', 'success')
         setSettings(data.settings || data)
+        // 1.5 saniye sonra dönem detay sayfasına yönlendir
+        setTimeout(() => {
+          router.push(`/terms/${termId}`)
+        }, 1500)
       } else {
         showToast(`❌ Hata: ${data.error || 'Ayarlar kaydedilemedi'}`, 'error')
       }

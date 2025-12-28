@@ -60,10 +60,39 @@ export async function POST(
       )
     }
 
+    // Code mantığı: Lab için özel, diğerleri için ilk harf
+    let classCode = name.charAt(0).toUpperCase()
+    if (name.toLowerCase().includes('laboratuvar') || name.toLowerCase().includes('lab')) {
+      classCode = 'LAB'
+    } else if (name.length > 0) {
+      // A-F sınıfları için sadece harf
+      const firstChar = name.charAt(0).toUpperCase()
+      if (firstChar >= 'A' && firstChar <= 'F') {
+        classCode = firstChar
+      } else {
+        classCode = firstChar
+      }
+    }
+
+    // Aynı dönemde aynı code'a sahip sınıf var mı kontrol et
+    const existingCode = await prisma.class.findFirst({
+      where: {
+        termId: params.id,
+        code: classCode,
+      },
+    })
+
+    if (existingCode) {
+      return NextResponse.json(
+        { error: `Bu dönemde "${classCode}" kodlu bir sınıf zaten mevcut` },
+        { status: 400 }
+      )
+    }
+
     const newClass = await prisma.class.create({
       data: {
         name,
-        code: name.charAt(0).toUpperCase(),
+        code: classCode,
         capacity: parseInt(capacity),
         termId: params.id,
       },

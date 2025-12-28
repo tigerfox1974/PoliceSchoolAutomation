@@ -128,7 +128,7 @@ export default function ClassesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <ToastContainer toasts={toasts.map(toast => ({ ...toast, onClose: removeToast }))} />
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       <div className="mb-8">
         <Link href="/terms" className="text-blue-600 hover:underline mb-2 inline-flex items-center gap-2">
@@ -225,6 +225,24 @@ export default function ClassesPage() {
                     }}
                   />
                 </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => showToast('Düzenleme özelliği yakında eklenecek', 'info')}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                >
+                  <Icon icon="ph:pencil-bold" width="16" />
+                  Düzenle
+                </button>
+                <button
+                  onClick={() => showToast('Detay sayfası yakında eklenecek', 'info')}
+                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                >
+                  <Icon icon="ph:eye-bold" width="16" />
+                  Detay
+                </button>
               </div>
             </div>
           ))}

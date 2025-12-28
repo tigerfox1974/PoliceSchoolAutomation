@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { ToastContainer } from '@/shared/components'
 
 interface Term {
   id: string
@@ -34,6 +35,20 @@ export default function TermDetailPage() {
   const [term, setTerm] = useState<Term | null>(null)
   const [loading, setLoading] = useState(true)
   const [showClassForm, setShowClassForm] = useState(false)
+  const [toasts, setToasts] = useState<Array<{
+    id: string
+    message: string
+    type: 'success' | 'error' | 'info' | 'warning'
+  }>>([])
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    const id = Date.now().toString()
+    setToasts(prev => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   useEffect(() => {
     if (params.id) {
@@ -69,17 +84,21 @@ export default function TermDetailPage() {
         body: JSON.stringify(data),
       })
 
+      const responseData = await res.json()
+
       if (res.ok) {
+        showToast('✅ Sınıf başarıyla oluşturuldu!', 'success')
         setShowClassForm(false)
         fetchTerm()
         ;(e.target as HTMLFormElement).reset()
       } else {
-        const error = await res.json()
-        alert(error.error || 'Sınıf oluşturulamadı')
+        const errorMessage = responseData.error || 'Sınıf oluşturulamadı'
+        showToast(`❌ Hata: ${errorMessage}`, 'error')
+        console.error('Sınıf oluşturma hatası:', responseData)
       }
     } catch (error) {
       console.error('Sınıf oluşturma hatası:', error)
-      alert('Sunucu hatası')
+      showToast('❌ Sunucu hatası', 'error')
     }
   }
 
@@ -101,6 +120,8 @@ export default function TermDetailPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      
       {/* Başlık */}
       <div className="mb-8">
         <Link href="/terms" className="text-blue-600 hover:underline mb-4 inline-block">
