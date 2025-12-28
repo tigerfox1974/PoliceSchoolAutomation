@@ -19,6 +19,14 @@ interface EditClassModalProps {
   termId: string
 }
 
+interface CreateClassModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: (message: string) => void
+  onError: (message: string) => void
+  termId: string
+}
+
 export default function EditClassModal({
   isOpen,
   onClose,
@@ -39,6 +47,12 @@ export default function EditClassModal({
         name: classItem.name,
         capacity: classItem.capacity.toString(),
       })
+    } else if (!classItem && isOpen) {
+      // Yeni sınıf oluşturma modu - formu sıfırla
+      setFormData({
+        name: '',
+        capacity: '',
+      })
     }
   }, [classItem, isOpen])
 
@@ -47,8 +61,13 @@ export default function EditClassModal({
     setIsSubmitting(true)
 
     try {
-      const res = await fetch(`/api/terms/${termId}/classes/${classItem?.id}`, {
-        method: 'PUT',
+      const isEditMode = classItem !== null
+      const url = isEditMode
+        ? `/api/terms/${termId}/classes/${classItem.id}`
+        : `/api/terms/${termId}/classes`
+      
+      const res = await fetch(url, {
+        method: isEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.name,
@@ -59,21 +78,23 @@ export default function EditClassModal({
       const data = await res.json()
 
       if (res.ok) {
-        onSuccess('✅ Sınıf başarıyla güncellendi!')
+        onSuccess(isEditMode ? '✅ Sınıf başarıyla güncellendi!' : '✅ Sınıf başarıyla oluşturuldu!')
         onClose()
       } else {
-        onError(`❌ Hata: ${data.error || 'Sınıf güncellenemedi'}`)
+        onError(`❌ Hata: ${data.error || (isEditMode ? 'Sınıf güncellenemedi' : 'Sınıf oluşturulamadı')}`)
       }
     } catch (error) {
-      console.error('Class update error:', error)
+      console.error('Class operation error:', error)
       onError('❌ Sunucu hatası')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  const isEditMode = classItem !== null
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Sınıf Düzenle" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={isEditMode ? "Sınıf Düzenle" : "Yeni Sınıf Ekle"} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block mb-2 font-medium">Sınıf Adı</label>
@@ -113,7 +134,7 @@ export default function EditClassModal({
             disabled={isSubmitting}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? 'Güncelleniyor...' : 'Güncelle'}
+            {isSubmitting ? (isEditMode ? 'Güncelleniyor...' : 'Oluşturuluyor...') : (isEditMode ? 'Güncelle' : 'Oluştur')}
           </button>
         </div>
       </form>

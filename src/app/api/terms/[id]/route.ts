@@ -17,6 +17,9 @@ export async function GET(
           },
         },
         classes: {
+          where: {
+            isDeleted: false,
+          },
           include: {
             _count: {
               select: {

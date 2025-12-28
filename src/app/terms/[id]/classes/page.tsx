@@ -38,6 +38,7 @@ export default function ClassesPage() {
     type: 'success' | 'error' | 'info' | 'warning'
   }>>([])
   const [editingClass, setEditingClass] = useState<Class | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean
     title: string
@@ -150,14 +151,19 @@ export default function ClassesPage() {
         message={confirmDialog.message}
         type={confirmDialog.type}
         onConfirm={confirmDialog.onConfirm}
-        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+        onClose={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
       />
       <EditClassModal
-        isOpen={editingClass !== null}
-        onClose={() => setEditingClass(null)}
+        isOpen={editingClass !== null || showCreateModal}
+        onClose={() => {
+          setEditingClass(null)
+          setShowCreateModal(false)
+        }}
         onSuccess={(msg) => {
           showToast(msg, 'success')
           fetchClasses()
+          setEditingClass(null)
+          setShowCreateModal(false)
         }}
         onError={(msg) => showToast(msg, 'error')}
         classItem={editingClass}
@@ -209,13 +215,13 @@ export default function ClassesPage() {
       {classes.length > 0 && (
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-2xl font-bold">Sınıflar ({classes.length})</h2>
-          <Link
-            href={`/terms/${termId}`}
+          <button
+            onClick={() => setShowCreateModal(true)}
             className="text-sm text-blue-600 hover:underline flex items-center gap-1"
           >
             <Icon icon="ph:plus-bold" width="16" />
             Yeni Sınıf Ekle
-          </Link>
+          </button>
         </div>
       )}
 
