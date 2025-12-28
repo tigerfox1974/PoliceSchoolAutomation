@@ -8,7 +8,10 @@ export async function GET(
 ) {
   try {
     const classes = await prisma.class.findMany({
-      where: { termId: params.id },
+      where: { 
+        termId: params.id,
+        isDeleted: false, // Soft delete filtresi
+      },
       include: {
         _count: {
           select: {
@@ -60,31 +63,64 @@ export async function POST(
       )
     }
 
-    // Code mantığı: Lab için özel, diğerleri için ilk harf
-    let classCode = name.charAt(0).toUpperCase()
+    // Code mantığı: Daha akıllı code üretimi
+    let classCode = ''
+    
+    // Lab için özel
     if (name.toLowerCase().includes('laboratuvar') || name.toLowerCase().includes('lab')) {
       classCode = 'LAB'
-    } else if (name.length > 0) {
-      // A-F sınıfları için sadece harf
-      const firstChar = name.charAt(0).toUpperCase()
-      if (firstChar >= 'A' && firstChar <= 'F') {
-        classCode = firstChar
-      } else {
-        classCode = firstChar
+    } 
+    // "X Sınıfı" formatındaysa sadece harfi al (A, B, C, D, E, F)
+    else if (/^[A-F]\s*Sınıfı$/i.test(name.trim())) {
+      classCode = name.charAt(0).toUpperCase()
+    }
+    // İsim sadece tek harf ise (A, B, C, vb.)
+    else if (/^[A-Z]$/i.test(name.trim())) {
+      classCode = name.trim().toUpperCase()
+    }
+    // İsim "HABABAM", "A1", "AAA" gibi özel isimse
+    else {
+      // İlk harfi al
+      classCode = name.charAt(0).toUpperCase()
+      
+      // Eğer çakışma varsa, ismin ilk 3 harfini kullan
+      const existingCodeCheck = await prisma.class.findFirst({
+        where: {
+          termId: params.id,
+          code: classCode,
+          isDeleted: false,
+        },
+      })
+      
+      if (existingCodeCheck && name.length >= 3) {
+        // İlk 3 harfi al ve büyük harfe çevir, boşlukları ve özel karakterleri kaldır
+        classCode = name
+          .substring(0, 3)
+          .toUpperCase()
+          .replace(/\s/g, '')
+          .replace(/[^A-Z0-9]/g, '')
+      } else if (existingCodeCheck) {
+        // 3 harften azsa, ismin tamamını kullan (boşluk ve özel karakterler olmadan)
+        classCode = name
+          .toUpperCase()
+          .replace(/\s/g, '')
+          .replace(/[^A-Z0-9]/g, '')
+          .substring(0, 5) // Maksimum 5 karakter
       }
     }
 
-    // Aynı dönemde aynı code'a sahip sınıf var mı kontrol et
+    // Aynı dönemde aynı code'a sahip sınıf var mı kontrol et (soft delete hariç)
     const existingCode = await prisma.class.findFirst({
       where: {
         termId: params.id,
         code: classCode,
+        isDeleted: false,
       },
     })
 
     if (existingCode) {
       return NextResponse.json(
-        { error: `Bu dönemde "${classCode}" kodlu bir sınıf zaten mevcut` },
+        { error: `Bu dönemde "${classCode}" kodlu bir sınıf zaten mevcut. Lütfen farklı bir sınıf adı kullanın.` },
         { status: 400 }
       )
     }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { ConfirmDialog, ToastContainer } from '@/shared/components'
+import EditClassModal from '@/features/classes/components/EditClassModal'
 
 interface Class {
   id: string
@@ -36,6 +37,20 @@ export default function ClassesPage() {
     message: string
     type: 'success' | 'error' | 'info' | 'warning'
   }>>([])
+  const [editingClass, setEditingClass] = useState<Class | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type: 'danger' | 'warning' | 'info'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  })
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
     const id = Date.now().toString()
@@ -129,11 +144,30 @@ export default function ClassesPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
+      <EditClassModal
+        isOpen={editingClass !== null}
+        onClose={() => setEditingClass(null)}
+        onSuccess={(msg) => {
+          showToast(msg, 'success')
+          fetchClasses()
+        }}
+        onError={(msg) => showToast(msg, 'error')}
+        classItem={editingClass}
+        termId={termId}
+      />
 
       <div className="mb-8">
-        <Link href="/terms" className="text-blue-600 hover:underline mb-2 inline-flex items-center gap-2">
+        <Link href={`/terms/${termId}`} className="text-blue-600 hover:underline mb-2 inline-flex items-center gap-2">
           <Icon icon="ph:arrow-left-bold" width="20" />
-          Dönemlere Dön
+          Döneme Dön
         </Link>
         {term && (
           <div className="mt-4">
@@ -145,7 +179,7 @@ export default function ClassesPage() {
         )}
       </div>
 
-      {/* Quick Action */}
+      {/* Quick Action - Sadece sınıf yoksa göster */}
       {classes.length === 0 && (
         <div className="mb-6">
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
@@ -168,6 +202,20 @@ export default function ClassesPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Sınıf Listesi Başlığı */}
+      {classes.length > 0 && (
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Sınıflar ({classes.length})</h2>
+          <Link
+            href={`/terms/${termId}`}
+            className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+          >
+            <Icon icon="ph:plus-bold" width="16" />
+            Yeni Sınıf Ekle
+          </Link>
         </div>
       )}
 
@@ -230,31 +278,63 @@ export default function ClassesPage() {
               {/* Action Buttons */}
               <div className="mt-4 flex gap-2">
                 <button
-                  onClick={() => showToast('Düzenleme özelliği yakında eklenecek', 'info')}
+                  onClick={() => setEditingClass(classItem)}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                  title="Sınıfı düzenle"
                 >
                   <Icon icon="ph:pencil-bold" width="16" />
                   Düzenle
                 </button>
                 <button
-                  onClick={() => showToast('Detay sayfası yakında eklenecek', 'info')}
+                  onClick={() => showToast(`Sınıf: ${classItem.name}, Kapasite: ${classItem.capacity}, Öğrenci: ${classItem._count.students}`, 'info')}
                   className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                  title="Sınıf detayları"
                 >
                   <Icon icon="ph:eye-bold" width="16" />
                   Detay
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmDialog({
+                      isOpen: true,
+                      title: 'Sınıfı Sil',
+                      message: `"${classItem.name}" sınıfını silmek istediğinize emin misiniz?${classItem._count.students > 0 ? `\n\n⚠️ Bu sınıfta ${classItem._count.students} öğrenci bulunmaktadır. Veriler korunacaktır.` : ''}`,
+                      type: 'danger',
+                      onConfirm: async () => {
+                        try {
+                          const res = await fetch(`/api/terms/${termId}/classes/${classItem.id}`, {
+                            method: 'DELETE',
+                          })
+                          const data = await res.json()
+
+                          if (res.ok) {
+                            showToast('✅ Sınıf başarıyla silindi!', 'success')
+                            if (data.warning) {
+                              showToast(`⚠️ ${data.warning}`, 'warning')
+                            }
+                            fetchClasses()
+                          } else {
+                            showToast(`❌ Hata: ${data.error || 'Sınıf silinemedi'}`, 'error')
+                          }
+                        } catch (error) {
+                          console.error('Class delete error:', error)
+                          showToast('❌ Sunucu hatası', 'error')
+                        } finally {
+                          setConfirmDialog({ ...confirmDialog, isOpen: false })
+                        }
+                      },
+                    })
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1"
+                  title="Sınıfı sil"
+                >
+                  <Icon icon="ph:trash-bold" width="16" />
                 </button>
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
-          <Icon icon="ph:chalkboard-bold" width="64" className="mx-auto mb-4 text-gray-400" />
-          <p className="text-xl text-gray-600 dark:text-gray-400">
-            Sınıf oluşturmak için yukarıdaki butonu kullanın
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }
