@@ -238,6 +238,7 @@ model Term {
   dailyLessons       DailyLesson[]
   exams              Exam[]
   dynamicFieldValues DynamicFieldValue[]
+  settings           TermSettings?
 
   @@map("terms")
 }
@@ -549,6 +550,40 @@ model CourseInstructor {
 // ============================================================================
 // DERS PROGRAMI
 // ============================================================================
+
+// Dönem Ayarları (Ders Saatleri, Çalışma Günleri, Sınav Haftaları)
+model TermSettings {
+  id String @id @default(cuid())
+  
+  termId String @unique
+  term   Term   @relation(fields: [termId], references: [id], onDelete: Cascade)
+  
+  // Ders Saatleri Ayarları
+  firstLessonStart String // "08:00" - İlk ders başlangıç saati
+  lessonDuration   Int    @default(45) // Ders süresi (dakika)
+  breakDuration    Int    @default(15) // Tenefüs süresi (dakika)
+  
+  // Öğle Yemeği
+  lunchBreakStart String // "12:45" - Öğle yemeği başlangıç
+  lunchBreakDuration Int @default(60) // Öğle yemeği süresi (dakika)
+  
+  // ETÜD (Opsiyonel)
+  hasStudyHall Boolean @default(false) // ETÜD var mı?
+  studyHallStart String? // "17:00"
+  studyHallDuration Int? @default(90) // ETÜD süresi (dakika)
+  
+  // Haftalık Çalışma Günleri (JSON array: ["MONDAY", "TUESDAY", ...])
+  workingDays Json? // DayOfWeek[] - [MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY]
+  
+  // Sınav Haftaları (Ders yapılmayacak) - JSON array
+  examWeeks Json? // [{ startDate: "2024-11-01", endDate: "2024-11-05", type: "MIDTERM" }]
+  
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("term_settings")
+}
 
 // Ders Saati Tanımı (KKTC Mesai Şablonu)
 model TimeSlot {
