@@ -36,7 +36,11 @@ export async function GET(
         _count: {
           select: {
             students: true,
-            classes: true,
+            classes: {
+              where: {
+                isDeleted: false, // Sadece aktif sınıfları say
+              },
+            },
             courses: true,
           },
         },

@@ -219,7 +219,14 @@ export default function TermDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {term.classes.map((cls) => (
+            {term.classes
+              .sort((a, b) => {
+                // Sınıfları code'a göre sırala (A, B, C, D, E, F, LAB)
+                if (a.code === 'LAB') return 1 // LAB en sona
+                if (b.code === 'LAB') return -1
+                return a.code.localeCompare(b.code, 'tr')
+              })
+              .map((cls) => (
               <div
                 key={cls.id}
                 className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
