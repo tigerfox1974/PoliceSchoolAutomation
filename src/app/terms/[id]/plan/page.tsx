@@ -348,10 +348,23 @@ export default function TermPlanPage() {
           <Icon icon="ph:arrow-left-bold" width="20" />
           Döneme Dön
         </Link>
-        <h1 className="text-3xl font-bold">📋 Dönem Planı</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          {term.name} - {term.termCode}
-        </p>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">📋 Dönem Planı</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              {term.name} - {term.termCode}
+            </p>
+          </div>
+          {plans.length > 0 && (
+            <Link
+              href={`/terms/${termId}/plan/monthly`}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 flex items-center gap-2 font-medium"
+            >
+              <Icon icon="ph:calendar-blank-bold" width="20" />
+              Aylık Program
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Mevcut Plan Görünümü */}
