@@ -239,6 +239,7 @@ model Term {
   exams              Exam[]
   dynamicFieldValues DynamicFieldValue[]
   settings           TermSettings?
+  termCoursePlans    TermCoursePlan[]
 
   @@map("terms")
 }
@@ -525,6 +526,7 @@ model Course {
   exams             Exam[]
   attendances       Attendance[]
   conferences       Conference[] // Bu derse bağlı konferanslar
+  termCoursePlans   TermCoursePlan[]
 
   @@unique([code])
   @@index([programScope])
@@ -583,6 +585,49 @@ model TermSettings {
   updatedAt DateTime @updatedAt
   
   @@map("term_settings")
+}
+
+// Dönem Ders Planı (Hangi ders, toplam kaç saat)
+model TermCoursePlan {
+  id                 String   @id @default(cuid())
+  termId             String
+  term               Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  courseId           String
+  course             Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  totalPlannedHours  Int      // Dönem boyunca toplam hedef saat
+  totalActualHours   Int      @default(0) // Gerçekleşen toplam saat
+  
+  // Audit
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // İlişkiler
+  monthlyPlans       MonthlyCoursePlan[]
+  
+  @@unique([termId, courseId])
+  @@index([termId])
+  @@index([courseId])
+  @@map("term_course_plans")
+}
+
+// Aylık Ders Planı (Her ay hangi ders kaç saat)
+model MonthlyCoursePlan {
+  id                String          @id @default(cuid())
+  termCoursePlanId  String
+  termCoursePlan    TermCoursePlan  @relation(fields: [termCoursePlanId], references: [id], onDelete: Cascade)
+  month             Int             // 1-12
+  year              Int
+  plannedHours      Int             // Bu ay hedef saat
+  actualHours       Int             @default(0) // Gerçekleşen saat
+  
+  // Audit
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@unique([termCoursePlanId, month, year])
+  @@index([termCoursePlanId])
+  @@index([month, year])
+  @@map("monthly_course_plans")
 }
 
 // Ders Saati Tanımı (KKTC Mesai Şablonu)

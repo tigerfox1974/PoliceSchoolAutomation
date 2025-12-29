@@ -63,6 +63,12 @@ export async function POST(
     const trimmedName = name.trim()
     let normalizedName = trimmedName
     
+    // Özel isimler: Laboratuvar, Lab içerenler değişmemeli
+    const isSpecialName = /laboratuvar|lab/i.test(trimmedName)
+    
+    // "Sınıf" veya "Sınıfı" kelimesi var mı kontrol et
+    const hasClassWord = /sınıf|sınıfı/i.test(trimmedName)
+    
     // Tek harf ise (A, B, C, D, E, F, G, vb.) → "X Sınıfı" formatına çevir
     if (/^[A-Z]$/i.test(trimmedName)) {
       normalizedName = `${trimmedName.toUpperCase()} Sınıfı`
@@ -70,6 +76,10 @@ export async function POST(
     // "X Sınıfı" formatında değilse ve tek harf + "Sınıfı" içermiyorsa, kontrol et
     else if (!/Sınıfı/i.test(trimmedName) && /^[A-Z]\s*$/i.test(trimmedName)) {
       normalizedName = `${trimmedName.toUpperCase()} Sınıfı`
+    }
+    // Eğer "Sınıf" veya "Sınıfı" kelimesi yoksa ve özel isim değilse → "Sınıfı" ekle
+    else if (!hasClassWord && !isSpecialName) {
+      normalizedName = `${trimmedName} Sınıfı`
     }
 
     // Aynı dönemde aynı isimli aktif sınıf var mı kontrol et (silinen sınıflar hariç)
@@ -89,17 +99,18 @@ export async function POST(
     }
 
     // Code mantığı: Daha akıllı code üretimi
+    // ÖNEMLİ: Code üretiminde sadece orijinal ismi (trimmedName) kullan, "Sınıfı" ekleme
     let classCode = ''
     
     // Lab için özel
-    if (normalizedName.toLowerCase().includes('laboratuvar') || normalizedName.toLowerCase().includes('lab')) {
+    if (trimmedName.toLowerCase().includes('laboratuvar') || trimmedName.toLowerCase().includes('lab')) {
       classCode = 'LAB'
     } 
-    // "X Sınıfı" formatındaysa sadece harfi al (A, B, C, D, E, F, G, vb.)
-    else if (/^[A-Z]\s*Sınıfı$/i.test(normalizedName)) {
-      classCode = normalizedName.charAt(0).toUpperCase()
+    // Tek harf ise (A, B, C, D, E, F, G, vb.) → sadece harfi kullan
+    else if (/^[A-Z]$/i.test(trimmedName)) {
+      classCode = trimmedName.toUpperCase()
     }
-    // İsim "HABABAM", "A1", "AAA", "haba" gibi özel isimse
+    // İsim "HABABAM", "A1", "AAA", "F1", "haba" gibi özel isimse
     else {
       // İlk harfi al
       const firstChar = trimmedName.charAt(0).toUpperCase()
@@ -126,9 +137,9 @@ export async function POST(
         
         if (existingCodeCheck) {
           // Çakışma var, alternatif code üret
-          if (normalizedName.length >= 3) {
+          if (trimmedName.length >= 3) {
             // İlk 3 harfi al ve büyük harfe çevir, boşlukları ve özel karakterleri kaldır
-            classCode = normalizedName
+            classCode = trimmedName
               .substring(0, 3)
               .toUpperCase()
               .replace(/\s/g, '')
@@ -146,7 +157,7 @@ export async function POST(
             
             if (existingCodeCheck3) {
               // İsmin tamamını kullan (boşluk ve özel karakterler olmadan)
-              classCode = normalizedName
+              classCode = trimmedName
                 .toUpperCase()
                 .replace(/\s/g, '')
                 .replace(/[^A-Z0-9]/g, '')
@@ -154,7 +165,7 @@ export async function POST(
             }
           } else {
             // 3 harften azsa, ismin tamamını kullan (boşluk ve özel karakterler olmadan)
-            classCode = normalizedName
+            classCode = trimmedName
               .toUpperCase()
               .replace(/\s/g, '')
               .replace(/[^A-Z0-9]/g, '')
@@ -166,8 +177,8 @@ export async function POST(
     
     // Güvenlik kontrolü: classCode boş olamaz
     if (!classCode || classCode.length === 0) {
-      // Son çare: ismin ilk 3 karakterini veya tamamını kullan
-      classCode = normalizedName
+      // Son çare: ismin ilk 3 karakterini veya tamamını kullan (orijinal isimden)
+      classCode = trimmedName
         .toUpperCase()
         .replace(/\s/g, '')
         .replace(/[^A-Z0-9]/g, '')

@@ -278,35 +278,125 @@
 
 ## 🔥 PHASE 2: DERS PROGRAMI (1-2 Hafta)
 
-### 📅 FAZ 2.1: DÖNEM AYARLARI
+### ✅ FAZ 2.1: DÖNEM AYARLARI (TAMAMLANDI ✅)
 
-> **Tahmini Süre:** 2-3 saat
+> **Tamamlanma:** 27 Aralık 2025  
+> **Süre:** ~3 saat  
+> **Durum:** %100 Tamamlandı
 
-- [ ] **2.1.1** `TermSettings` modeli kontrolü (zaten var mı?)
-- [ ] **2.1.2** `POST /api/terms/{termId}/settings` - Ayarları kaydet
+- [x] **2.1.1** `TermSettings` modeli kontrolü ✅ (Mevcut)
+- [x] **2.1.2** `POST /api/terms/{termId}/settings` - Ayarları kaydet ✅
   - İlk ders başlangıç saati
   - Ders süresi (45 dk)
   - Tenefüs süresi (15 dk)
   - Öğle yemeği süresi (60-90 dk)
   - ETÜD süresi (90 dk)
   
-- [ ] **2.1.3** TimeSlot otomatik hesaplama algoritması
+- [x] **2.1.3** TimeSlot otomatik hesaplama algoritması ✅
   - 1-5. dersler: firstLessonStart'tan başla
   - 5. dersten sonra öğle yemeği
   - 6-7. dersler: öğle yemeğinden sonra
   
-- [ ] **2.1.4** `/terms/{termId}/settings` - Ayarlar sayfası
+- [x] **2.1.4** `/terms/{termId}/settings` - Ayarlar sayfası ✅
   - Form girişi
   - Hesaplanan saat dilimlerini önizleme
   
-- [ ] **2.1.5** Test & Commit
+- [x] **2.1.5** Test & Commit ✅
+
+**Tamamlanan Özellikler:**
+- ✅ TermSettings modeli (Prisma schema)
+- ✅ API Routes (GET, POST, PUT)
+- ✅ Settings sayfası
+- ✅ TimeSlot otomatik hesaplama
+- ✅ Önizleme bölümü
 
 ---
 
-### 📊 FAZ 2.2: HAFTALIK PROGRAM
+### 📊 FAZ 2.2: DÖNEM PLANI (ÖNCE BU!)
+
+> **Tahmini Süre:** 3-4 saat  
+> **Öncelik:** EN YÜKSEK (Diğer fazların temeli)
+
+**⚠️ ÖNEMLİ:** Doğru sıralama:
+1. ✅ FAZ 2.1: Dönem Ayarları (TAMAMLANDI)
+2. ⏳ **FAZ 2.2: Dönem Planı** (TermCoursePlan) - ÖNCE BU!
+3. ⏳ FAZ 2.3: Aylık Program (MonthlyCoursePlan)
+4. ⏳ FAZ 2.4: Haftalık Program (ScheduleEntry)
+5. ⏳ FAZ 2.5: Günlük Program (DailyLesson)
+
+#### Backend - Veritabanı
+
+- [ ] **2.2.1** `TermCoursePlan` modeli ekle (Prisma schema)
+  - termId, courseId
+  - totalPlannedHours (dönem boyunca toplam hedef saat)
+  - totalActualHours (gerçekleşen saat, başlangıçta 0)
+  
+- [ ] **2.2.2** `MonthlyCoursePlan` modeli ekle (Prisma schema)
+  - termCoursePlanId (TermCoursePlan'a bağlı)
+  - month, year
+  - plannedHours (aylık hedef saat)
+  - actualHours (gerçekleşen saat)
+  
+- [ ] **2.2.3** Migration çalıştır
+
+#### Backend - API
+
+- [ ] **2.2.4** `POST /api/terms/{termId}/course-plans` - Dönem planı oluştur
+  - Input: Dersler ve hedef saatleri
+  - Algoritma: Ağırlık hesaplama, toplam saat dağılımı
+  - Output: TermCoursePlan[] (her ders için bir plan)
+  
+- [ ] **2.2.5** `GET /api/terms/{termId}/course-plans` - Dönem planını getir
+- [ ] **2.2.6** `PUT /api/terms/{termId}/course-plans/{id}` - Plan güncelle
+- [ ] **2.2.7** `DELETE /api/terms/{termId}/course-plans/{id}` - Plan sil
+
+#### Frontend
+
+- [ ] **2.2.8** `/terms/{termId}/plan` - Dönem planı sayfası
+  - Ders seçimi (checkbox list)
+  - Hedef saat girişi (4 aylık / 6 aylık)
+  - Otomatik ağırlık hesaplama
+  - Plan önizleme tablosu
+  
+- [ ] **2.2.9** Test & Commit
+
+---
+
+### 📅 FAZ 2.3: AYLIK PROGRAM
+
+> **Tahmini Süre:** 2-3 saat  
+> **Öncelik:** YÜKSEK
+
+**Bağımlılık:** FAZ 2.2 tamamlanmalı
+
+#### Backend - API
+
+- [ ] **2.3.1** `POST /api/terms/{termId}/monthly-plans/generate` - Aylık planları oluştur
+  - Input: TermCoursePlan[]
+  - Algoritma: Toplam saatleri aylara böl, çalışma günlerini hesapla
+  - Output: MonthlyCoursePlan[] (her ders × her ay)
+  
+- [ ] **2.3.2** `GET /api/terms/{termId}/monthly-plans?month=X&year=Y` - Aylık planları getir
+- [ ] **2.3.3** `PUT /api/monthly-plans/{id}` - Aylık plan güncelle
+
+#### Frontend
+
+- [ ] **2.3.4** `/terms/{termId}/plan/monthly` - Aylık program sayfası
+  - Ay seçici
+  - Tablo görünümü (Ders × Ay)
+  - Planlanan vs Gerçekleşen saat karşılaştırması
+  - İlerleme göstergesi
+  
+- [ ] **2.3.5** Test & Commit
+
+---
+
+### 📊 FAZ 2.4: HAFTALIK PROGRAM
 
 > **Tahmini Süre:** 4-5 saat  
 > **En Karmaşık Modül!**
+
+**Bağımlılık:** FAZ 2.3 tamamlanmalı
 
 #### Backend - Temel Yapı
 
@@ -360,13 +450,16 @@
 
 ---
 
-### 📆 FAZ 2.3: GÜNLÜK PROGRAM
+### 📆 FAZ 2.5: GÜNLÜK PROGRAM
 
-> **Tahmini Süre:** 3-4 saat
+> **Tahmini Süre:** 3-4 saat  
+> **Öncelik:** ORTA
+
+**Bağımlılık:** FAZ 2.4 tamamlanmalı
 
 #### Backend - DailyLesson İşlemleri
 
-- [ ] **2.3.1** `GET /api/daily-lessons?date=YYYY-MM-DD`
+- [ ] **2.5.1** `GET /api/daily-lessons?date=YYYY-MM-DD`
   - O günün tüm dersleri
   - Status: PLANNED, COMPLETED, CANCELLED
   

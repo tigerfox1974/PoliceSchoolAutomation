@@ -50,10 +50,11 @@
 
 ---
 
-## 🎯 FAZ 2.1: DÖNEM AYARLARI (İLK ADIM)
+## ✅ FAZ 2.1: DÖNEM AYARLARI (TAMAMLANDI ✅)
 
-> **Tahmini Süre:** 2-3 saat  
-> **Öncelik:** EN YÜKSEK (Diğer fazların temeli)
+> **Tamamlanma:** 27 Aralık 2025  
+> **Süre:** ~3 saat  
+> **Durum:** %100 Tamamlandı
 
 ### Adım 1: Veritabanı Modeli Oluşturma
 
@@ -178,11 +179,191 @@ npx prisma generate
 
 ### Adım 5: Test & Commit
 
-- [ ] TermSettings modeli oluşturuldu
+- [x] TermSettings modeli oluşturuldu ✅
+- [x] Migration çalıştırıldı ✅
+- [x] API route'ları test edildi ✅
+- [x] Settings sayfası çalışıyor ✅
+- [x] TimeSlot'lar otomatik oluşturuluyor ✅
+- [x] Linter hataları yok ✅
+- [x] Commit & Push ✅
+
+**Tamamlanan Özellikler:**
+- ✅ TermSettings modeli (Prisma schema)
+- ✅ API Routes (GET, POST, PUT)
+- ✅ Settings sayfası (`/terms/{id}/settings`)
+- ✅ Form alanları (ders saatleri, tenefüs, öğle yemeği, ETÜD)
+- ✅ Çalışma günleri seçimi
+- ✅ TimeSlot otomatik hesaplama
+- ✅ Önizleme bölümü
+- ✅ Otomatik yönlendirme (kayıt sonrası)
+
+---
+
+## 🎯 FAZ 2.2: DÖNEM PLANI (ÖNCE BU!)
+
+> **Tahmini Süre:** 3-4 saat  
+> **Öncelik:** EN YÜKSEK (Diğer fazların temeli)
+
+**⚠️ ÖNEMLİ:** Doğru sıralama:
+1. ✅ FAZ 2.1: Dönem Ayarları (TAMAMLANDI)
+2. ⏳ **FAZ 2.2: Dönem Planı** (TermCoursePlan) - ÖNCE BU!
+3. ⏳ FAZ 2.3: Aylık Program (MonthlyCoursePlan)
+4. ⏳ FAZ 2.4: Haftalık Program (ScheduleEntry)
+5. ⏳ FAZ 2.5: Günlük Program (DailyLesson)
+
+### Adım 1: Veritabanı Modelleri
+
+**1.1. TermCoursePlan Modeli Ekle (prisma/schema.prisma)**
+
+```prisma
+model TermCoursePlan {
+  id                 String   @id @default(cuid())
+  termId             String
+  term               Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  courseId           String
+  course             Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  totalPlannedHours  Int      // Dönem boyunca toplam hedef saat
+  totalActualHours   Int      @default(0) // Gerçekleşen toplam saat
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  monthlyPlans       MonthlyCoursePlan[]
+  
+  @@unique([termId, courseId])
+  @@index([termId])
+  @@index([courseId])
+  @@map("term_course_plans")
+}
+```
+
+**1.2. MonthlyCoursePlan Modeli Ekle**
+
+```prisma
+model MonthlyCoursePlan {
+  id                String          @id @default(cuid())
+  termCoursePlanId  String
+  termCoursePlan    TermCoursePlan  @relation(fields: [termCoursePlanId], references: [id], onDelete: Cascade)
+  month             Int             // 1-12
+  year              Int
+  plannedHours      Int             // Bu ay hedef saat
+  actualHours       Int             @default(0) // Gerçekleşen
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@unique([termCoursePlanId, month, year])
+  @@index([termCoursePlanId])
+  @@index([month, year])
+  @@map("monthly_course_plans")
+}
+```
+
+**1.3. Migration Çalıştır**
+
+```bash
+npx prisma migrate dev --name add_term_course_plans
+npx prisma generate
+```
+
+### Adım 2: Backend API - Dönem Planı
+
+**2.1. API Route: `src/app/api/terms/[termId]/course-plans/route.ts`**
+
+```typescript
+// POST /api/terms/{termId}/course-plans - Dönem planı oluştur
+// GET /api/terms/{termId}/course-plans - Dönem planını getir
+// PUT /api/terms/{termId}/course-plans/{id} - Plan güncelle
+// DELETE /api/terms/{termId}/course-plans/{id} - Plan sil
+```
+
+**Özellikler:**
+- POST: Dersler ve hedef saatleri al, ağırlık hesapla, TermCoursePlan oluştur
+- GET: Mevcut planları getir
+- PUT: Plan güncelle
+- DELETE: Plan sil
+
+**2.2. Ağırlık Hesaplama Algoritması**
+
+- Toplam çalışma günü hesapla (sınav haftaları ve tatiller hariç)
+- Toplam kullanılabilir saat = çalışma günü × 7 saat/gün
+- Her ders için hedef saate göre ağırlık hesapla
+- Ağırlığa göre saatleri dağıt
+
+### Adım 3: Frontend - Dönem Planı Sayfası
+
+**3.1. Sayfa: `src/app/terms/[termId]/plan/page.tsx`**
+
+**Form Alanları:**
+- Ders seçimi (checkbox list - tüm dersler)
+- Hedef saat girişi (4 aylık / 6 aylık dönem için)
+- Otomatik ağırlık hesaplama
+- Plan önizleme tablosu
+
+**3.2. Önizleme Bölümü**
+
+- Ders listesi
+- Toplam planlanan saat
+- Ağırlık yüzdesi
+- Kaydet butonu
+
+### Adım 4: Test & Commit
+
+- [ ] TermCoursePlan modeli oluşturuldu
+- [ ] MonthlyCoursePlan modeli oluşturuldu
 - [ ] Migration çalıştırıldı
 - [ ] API route'ları test edildi
-- [ ] Settings sayfası çalışıyor
-- [ ] TimeSlot'lar otomatik oluşturuluyor
+- [ ] Dönem planı sayfası çalışıyor
+- [ ] Ağırlık hesaplama algoritması çalışıyor
+- [ ] Linter hataları yok
+- [ ] Commit & Push
+
+**Tahmini Süre:** 3-4 saat
+
+---
+
+## 🎯 FAZ 2.3: AYLIK PROGRAM
+
+> **Tahmini Süre:** 2-3 saat  
+> **Öncelik:** YÜKSEK
+
+**Bağımlılık:** FAZ 2.2 tamamlanmalı
+
+### Adım 1: Backend API - Aylık Plan
+
+**1.1. API Route: `src/app/api/terms/[termId]/monthly-plans/route.ts`**
+
+```typescript
+// POST /api/terms/{termId}/monthly-plans/generate - Aylık planları oluştur
+// GET /api/terms/{termId}/monthly-plans?month=X&year=Y - Aylık planları getir
+// PUT /api/monthly-plans/{id} - Aylık plan güncelle
+```
+
+**Özellikler:**
+- POST: TermCoursePlan'ları al, aylara böl, MonthlyCoursePlan oluştur
+- GET: Belirli ay/yıl için planları getir
+- PUT: Aylık plan güncelle
+
+**1.2. Aylık Dağılım Algoritması**
+
+- Her ders için toplam planı aylara böl
+- Ayın çalışma günlerini hesapla
+- Ağırlığa göre saatleri dağıt
+- Sınav aylarında sınav haftasını dikkate al
+
+### Adım 2: Frontend - Aylık Program Sayfası
+
+**2.1. Sayfa: `src/app/terms/[termId]/plan/monthly/page.tsx`**
+
+**Özellikler:**
+- Ay seçici
+- Tablo görünümü (Ders × Ay)
+- Planlanan vs Gerçekleşen saat karşılaştırması
+- İlerleme göstergesi
+
+### Adım 3: Test & Commit
+
+- [ ] API route'ları test edildi
+- [ ] Aylık dağılım algoritması çalışıyor
+- [ ] Aylık program sayfası çalışıyor
 - [ ] Linter hataları yok
 - [ ] Commit & Push
 
@@ -190,10 +371,12 @@ npx prisma generate
 
 ---
 
-## 🎯 FAZ 2.2: HAFTALIK PROGRAM (EN KARMAŞIK)
+## 🎯 FAZ 2.4: HAFTALIK PROGRAM (EN KARMAŞIK)
 
 > **Tahmini Süre:** 4-5 saat  
 > **Öncelik:** YÜKSEK
+
+**Bağımlılık:** FAZ 2.3 tamamlanmalı
 
 ### Adım 1: Backend API - Schedule
 

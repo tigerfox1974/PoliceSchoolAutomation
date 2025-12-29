@@ -1,8 +1,13 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Icon } from '@iconify/react'
+import { prisma } from '@/lib/prisma'
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Ders sayısını veritabanından çek
+  const courseCount = await prisma.course.count({
+    where: { isDeleted: false }
+  })
   const modules = [
     {
       title: '🎓 Dönem Yönetimi',
@@ -19,7 +24,7 @@ export default function HomePage() {
       href: '/courses',
       icon: 'ph:book-open-bold',
       color: 'bg-green-600 hover:bg-green-700',
-      stats: '27 Ders Tanımlı',
+      stats: courseCount > 0 ? `${courseCount} Ders Tanımlı` : 'Ders Yok',
       available: true,
     },
     {
@@ -132,7 +137,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Toplam Ders</p>
-                <p className="text-3xl font-bold text-green-600">27</p>
+                <p className="text-3xl font-bold text-green-600">{courseCount}</p>
               </div>
               <Icon icon="ph:book-open-bold" width="40" className="text-green-500 opacity-20" />
             </div>
