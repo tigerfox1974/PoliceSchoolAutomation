@@ -9,6 +9,8 @@ export async function GET(request: Request) {
 
     const where: any = {
       isDeleted: false, // Silinmiş eğitmenleri gösterme
+      // isActive kontrolünü kaldırdık - tüm aktif/pasif eğitmenleri göster
+      // Kullanıcı pasif eğitmenleri de görebilmeli
     }
 
     if (instructorType) {

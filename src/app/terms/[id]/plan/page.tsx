@@ -356,13 +356,22 @@ export default function TermPlanPage() {
             </p>
           </div>
           {plans.length > 0 && (
-            <Link
-              href={`/terms/${termId}/plan/monthly`}
-              className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 flex items-center gap-2 font-medium"
-            >
-              <Icon icon="ph:calendar-blank-bold" width="20" />
-              Aylık Program
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href={`/terms/${termId}/plan/monthly`}
+                className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 flex items-center gap-2 font-medium"
+              >
+                <Icon icon="ph:calendar-blank-bold" width="20" />
+                Aylık Program
+              </Link>
+              <Link
+                href={`/terms/${termId}/schedule/weekly/1`}
+                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 flex items-center gap-2 font-medium"
+              >
+                <Icon icon="ph:calendar-week-bold" width="20" />
+                Haftalık Program
+              </Link>
+            </div>
           )}
         </div>
       </div>

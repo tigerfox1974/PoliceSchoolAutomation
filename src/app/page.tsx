@@ -75,11 +75,11 @@ export default async function HomePage() {
     {
       title: '📅 Ders Programı',
       description: 'Haftalık/Günlük ders programı, eğitmen rotasyonu ve müfredat takibi.',
-      href: '/schedule',
+      href: '/terms',
       icon: 'ph:calendar-dots-bold',
       color: 'bg-rose-600 hover:bg-rose-700',
-      stats: 'Yakında',
-      available: false,
+      stats: 'Haftalık Aktif',
+      available: true,
     },
     {
       title: '📊 Raporlar ve İstatistikler',
