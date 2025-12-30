@@ -1009,11 +1009,27 @@ export async function GET(
       const slots = Array.from({ length: 7 }, (_, index) => {
         const slotNumber = index + 1
         
-        // Bu saat için dersleri bul
+        // Bu saat için dersleri bul (specialEvent'ler dahil)
         const slotLessons = dayLessons.filter((l) => l.timeSlot?.slotNumber === slotNumber)
         
         if (slotLessons.length === 0) {
           return null
+        }
+        
+        // SpecialEvent varsa öncelik ver (İntibak Eğitimi için)
+        const specialEventLesson = slotLessons.find(l => l.isSpecialEvent && l.specialEvent)
+        if (specialEventLesson) {
+          return {
+            ...specialEventLesson,
+            course: specialEventLesson.specialEvent ? {
+              id: null,
+              name: specialEventLesson.specialEvent.eventTitle,
+              code: null,
+              requiresLab: false,
+              totalPlannedHours: 0,
+              occurrenceCount: 0,
+            } : null,
+          }
         }
         
         // Aynı saatte aynı ders varsa, sadece birini al (ilkini)

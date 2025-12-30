@@ -44,6 +44,7 @@ export default function WeeklySchedulePage() {
   const [generating, setGenerating] = useState(false)
   const [term, setTerm] = useState<any>(null)
   const [maxWeeksFromAPI, setMaxWeeksFromAPI] = useState<number | null>(null)
+  const [allWeeksGenerated, setAllWeeksGenerated] = useState(false) // Tüm haftalar için program oluşturuldu mu?
   
   // maxWeeks'i term state'inden veya API'den gelen değerden hesapla
   const maxWeeks = useMemo(() => {
@@ -125,6 +126,10 @@ export default function WeeklySchedulePage() {
         if (data.totalWeeks && data.totalWeeks > 0) {
           setMaxWeeksFromAPI(data.totalWeeks)
         }
+        // Eğer bu haftada program varsa, tüm haftalar için program oluşturulmuş demektir
+        if (data.totalLessons > 0) {
+          setAllWeeksGenerated(true)
+        }
       } else {
         const error = await response.json()
         showToast(error.error || 'Haftalık program getirilemedi', 'error')
@@ -163,6 +168,10 @@ export default function WeeklySchedulePage() {
           if (totalWeeks > 0) {
             setMaxWeeksFromAPI(totalWeeks)
           }
+          // Tüm haftalar için program oluşturuldu flag'ini set et
+          setAllWeeksGenerated(true)
+          // Program oluşturulduktan sonra mevcut haftayı yeniden yükle
+          await fetchSchedule()
         } else {
           const lessonCount = data.createdLessons || 0
           if (lessonCount > 0) {
@@ -426,7 +435,7 @@ export default function WeeklySchedulePage() {
       {/* Actions */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {!schedule || schedule.totalLessons === 0 ? (
+          {!allWeeksGenerated && (!schedule || schedule.totalLessons === 0) ? (
             <button
               onClick={() => handleGenerate(true)}
               disabled={generating}

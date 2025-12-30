@@ -279,7 +279,7 @@ export default function InstructorDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Atandığı Dönemler</p>
-              <p className="text-2xl font-bold">{instructor._count.instructorTerms}</p>
+              <p className="text-2xl font-bold">{instructor._count.instructorTerms || 0}</p>
             </div>
           </div>
         </div>

@@ -23,6 +23,7 @@ export interface Instructor {
   _count: {
     courseInstructors: number
     dailyLessons: number
+    instructorTerms?: number
   }
 }
 

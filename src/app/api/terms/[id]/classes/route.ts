@@ -266,15 +266,6 @@ export async function POST(
       errorStack: error instanceof Error ? error.stack : undefined,
     }
     
-    // Sadece tanımlı değişkenleri logla
-    try {
-      if (typeof name !== 'undefined') errorDetails.name = name
-      if (typeof capacity !== 'undefined') errorDetails.capacity = capacity
-      if (typeof termId !== 'undefined') errorDetails.termId = termId
-    } catch (e) {
-      // Değişkenler tanımlı değilse sessizce geç
-    }
-    
     console.error('Error details:', errorDetails)
     
     return NextResponse.json(

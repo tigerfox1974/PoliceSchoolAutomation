@@ -225,12 +225,12 @@ export default function MonthlyPlanPage() {
     
     // Başlık
     doc.setFontSize(16)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.text('Aylik Program', startX, yPos)
     yPos += 7
     
     doc.setFontSize(11)
-    doc.setFont(undefined, 'normal')
+    doc.setFont('helvetica', 'normal')
     doc.text(`${term?.name || ''} - ${term?.termCode || ''}`, startX, yPos)
     yPos += 5
     
@@ -258,7 +258,7 @@ export default function MonthlyPlanPage() {
     
     // Tablo başlıkları
     doc.setFontSize(8)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     let xPos = startX
     
     // Başlık satırı arka planı
@@ -289,7 +289,7 @@ export default function MonthlyPlanPage() {
     doc.setTextColor(0, 0, 0)
     
     // Veri satırları
-    doc.setFont(undefined, 'normal')
+    doc.setFont('helvetica', 'normal')
     plans.forEach((plan, index) => {
       // Sayfa sonu kontrolü
       if (yPos > pageHeight - 20) {
@@ -298,7 +298,7 @@ export default function MonthlyPlanPage() {
         
         // Yeni sayfada başlık tekrarı
         doc.setFontSize(8)
-        doc.setFont(undefined, 'bold')
+        doc.setFont('helvetica', 'bold')
         doc.setFillColor(37, 99, 235)
         doc.rect(startX, yPos - 4, availableWidth, 6, 'F')
         doc.setTextColor(255, 255, 255)
@@ -397,7 +397,7 @@ export default function MonthlyPlanPage() {
     yPos += 4
     
     doc.setFontSize(8)
-    doc.setFont(undefined, 'bold')
+    doc.setFont('helvetica', 'bold')
     doc.setFillColor(209, 213, 219) // Gray-300
     doc.rect(startX, yPos - 3, availableWidth, 4, 'F')
     
