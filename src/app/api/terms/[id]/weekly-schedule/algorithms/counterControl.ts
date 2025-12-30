@@ -77,10 +77,12 @@ export async function getCourseCounters(
 
   // Sonuçları map'e dönüştür
   results.forEach((result) => {
-    counters.set(result.courseId, {
-      occurrenceCount: result._count.id,
-      remainingHours: 0, // Bu değer dışarıdan set edilecek (totalPlannedHours bilinmiyor)
-    })
+    if (result.courseId) {
+      counters.set(result.courseId, {
+        occurrenceCount: result._count.id,
+        remainingHours: 0, // Bu değer dışarıdan set edilecek (totalPlannedHours bilinmiyor)
+      })
+    }
   })
 
   return counters

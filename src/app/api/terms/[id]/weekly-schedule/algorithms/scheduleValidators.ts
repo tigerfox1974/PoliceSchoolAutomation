@@ -93,6 +93,26 @@ export function isWorkingDay(
 }
 
 /**
+ * Bir günde bir ders sadece bir kez kontrolü
+ */
+export async function checkCourseOnDay(
+  termId: string,
+  courseId: string,
+  date: Date
+): Promise<boolean> {
+  const existing = await prisma.dailyLesson.findFirst({
+    where: {
+      termId,
+      courseId,
+      specificDate: date,
+      isCancelled: false,
+    },
+  })
+
+  return existing !== null
+}
+
+/**
  * Slot dolu mu kontrolü
  */
 export async function isSlotOccupied(
