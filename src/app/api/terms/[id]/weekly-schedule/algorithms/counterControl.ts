@@ -31,27 +31,6 @@ export async function checkCourseCounter(
 }
 
 /**
- * Bir günde bir ders sadece bir kez kontrolü
- * Aynı gün aynı ders tekrar yazılmasın
- */
-export async function checkCourseOnDay(
-  termId: string,
-  courseId: string,
-  date: Date
-): Promise<boolean> {
-  const existing = await prisma.dailyLesson.findFirst({
-    where: {
-      termId,
-      courseId,
-      specificDate: date,
-      isCancelled: false,
-    },
-  })
-
-  return existing !== null
-}
-
-/**
  * Tüm derslerin sayaç bilgilerini toplu getir (performans için)
  */
 export async function getCourseCounters(
