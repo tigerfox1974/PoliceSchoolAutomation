@@ -253,12 +253,31 @@ async function generateAllWeeks(termId: string) {
     console.log(`Deleted ${deleted.count} existing lessons`)
 
     let totalCreatedLessons = 0
+    let totalCreatedSlotOccurrences = 0
+    let totalNoCandidateSlots = 0
+    let totalLabConflictSkips = 0
+    let totalStreakOverrideSlots = 0
     const weekResults: WeekGenerateResult[] = []
 
     for (let weekNum = 1; weekNum <= totalWeeks; weekNum++) {
       try {
         const result = await generateSingleWeek(termId, weekNum)
         totalCreatedLessons += result.createdLessons || 0
+
+        const debug = (result as any).debug as
+          | {
+              createdSlotOccurrences?: number
+              skippedNoCandidateSlots?: number
+              skippedLabConflictSlots?: number
+              streakOverrideSlots?: number
+            }
+          | undefined
+
+        totalCreatedSlotOccurrences += debug?.createdSlotOccurrences || 0
+        totalNoCandidateSlots += debug?.skippedNoCandidateSlots || 0
+        totalLabConflictSkips += debug?.skippedLabConflictSlots || 0
+        totalStreakOverrideSlots += debug?.streakOverrideSlots || 0
+
         weekResults.push({
           weekNumber: weekNum,
           createdLessons: result.createdLessons || 0,
@@ -281,6 +300,13 @@ async function generateAllWeeks(termId: string) {
       totalWeeks,
       totalCreatedLessons,
       weekResults,
+      debug: {
+        deletedLessons: deleted.count,
+        totalCreatedSlotOccurrences,
+        totalNoCandidateSlots,
+        totalLabConflictSkips,
+        totalStreakOverrideSlots,
+      },
     })
   } catch (error) {
     console.error('Generate all weeks error:', error)
@@ -344,10 +370,28 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     timeSlots,
   })
 
+  const formatMonthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`
+
   if (weekNumber === 1) {
     for (const event of specialEvents) {
       await prisma.dailyLesson.create({ data: event })
     }
+
+    const workingDays = (term.settings.workingDays as string[]) || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
+    const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+    let workingDaysCount = 0
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const d = new Date(weekStartDate)
+      d.setDate(weekStartDate.getDate() + dayOffset)
+      const dayName = dayNames[d.getDay()]
+      if (workingDays.includes(dayName)) workingDaysCount += 1
+    }
+
+    const uniqueSlotSet = new Set<string>()
+    for (const e of specialEvents) {
+      uniqueSlotSet.add(`${e.specificDate.toISOString()}|${e.timeSlotId}`)
+    }
+    const specialEventUniqueSlots = uniqueSlotSet.size
 
     return {
       message: `${weekNumber}. hafta programı oluşturuldu (İntibak Haftası)`,
@@ -355,10 +399,32 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
       weekNumber,
       weekStartDate,
       weekEndDate,
+      debug: {
+        weekNumber,
+        weekStartDate,
+        weekEndDate,
+        classesCount: classes.length,
+        timeSlotsCount: timeSlots.length,
+        workingDaysCount,
+        specialEventUniqueSlots,
+        peReservedUniqueSlots: 0,
+        totalBlockedUniqueSlots: specialEventUniqueSlots,
+        totalFreeSlots: 0,
+        createdSlotOccurrences: 0,
+        createdLessonsRows: 0,
+        skippedNoCandidateSlots: 0,
+        skippedLabConflictSlots: 0,
+        streakOverrideSlots: 0,
+        backlogStartTotal: 0,
+        backlogEndTotal: 0,
+        totalRemainingStart: 0,
+        totalRemainingEnd: 0,
+      },
     }
   }
 
   const specialEventSlots = new Map<string, string[]>()
+  let specialEventUniqueSlots = 0
   for (const event of specialEvents) {
     await prisma.dailyLesson.create({ data: event })
 
@@ -366,10 +432,16 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     if (!specialEventSlots.has(dateKey)) {
       specialEventSlots.set(dateKey, [])
     }
-    specialEventSlots.get(dateKey)!.push(event.timeSlotId)
+
+    const arr = specialEventSlots.get(dateKey)!
+    if (!arr.includes(event.timeSlotId)) {
+      arr.push(event.timeSlotId)
+      specialEventUniqueSlots += 1
+    }
   }
 
   const peSlots = getPhysicalEducationReservedSlots(weekStartDate, timeSlots)
+  let peReservedUniqueSlots = 0
   for (const { date, slotId } of peSlots) {
     const dateKey = date.toISOString()
     if (!specialEventSlots.has(dateKey)) {
@@ -377,11 +449,44 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
     if (!specialEventSlots.get(dateKey)!.includes(slotId)) {
       specialEventSlots.get(dateKey)!.push(slotId)
+      peReservedUniqueSlots += 1
     }
   }
 
   const workingDays = (term.settings.workingDays as string[]) || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
   const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+
+  const workingDaysSet = new Set(workingDays.filter((d) => d !== 'SATURDAY' && d !== 'SUNDAY'))
+  const startOfDay = (d: Date) => {
+    const x = new Date(d)
+    x.setHours(0, 0, 0, 0)
+    return x
+  }
+  const formatDateOnly = (d: Date) => d.toISOString().split('T')[0]
+  const isWorkingDay = (d: Date) => workingDaysSet.has(dayNames[d.getDay()])
+  const termStartDay = startOfDay(term.startDate)
+  const termEndDay = startOfDay(term.endDate)
+
+  const getPrevWorkingDay = (d: Date) => {
+    let x = startOfDay(d)
+    x.setDate(x.getDate() - 1)
+    while (x >= termStartDay && !isWorkingDay(x)) {
+      x.setDate(x.getDate() - 1)
+    }
+    return x
+  }
+
+  const countRemainingWorkingDaysInMonth = (fromDate: Date) => {
+    const start = startOfDay(fromDate)
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+    end.setHours(0, 0, 0, 0)
+
+    let count = 0
+    for (let d = new Date(start); d <= end && d <= termEndDay; d.setDate(d.getDate() + 1)) {
+      if (isWorkingDay(d)) count += 1
+    }
+    return Math.max(1, count)
+  }
 
   // Bu haftanın (iş günleri) kapsadığı ay/yıl kombinasyonlarını bul (ay sınırı haftaları için)
   const schedulableDates: Date[] = []
@@ -437,8 +542,6 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
       weekEndDate,
     }
   }
-
-  const formatMonthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`
 
   type CourseMeta = {
     id: string
@@ -538,6 +641,14 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   const backlogByCourseId = new Map<string, number>()
   for (const courseId of allCourseIds) backlogByCourseId.set(courseId, 0)
 
+  // Streak (arka arkaya gün) kontrolü için: courseId -> Set<YYYY-MM-DD>
+  const scheduledDateStrsByCourseId = new Map<string, Set<string>>()
+  for (const courseId of allCourseIds) scheduledDateStrsByCourseId.set(courseId, new Set())
+  for (const row of distinctLessonsUpToPreviousDay) {
+    if (!row.courseId || !row.specificDate) continue
+    scheduledDateStrsByCourseId.get(row.courseId)?.add(formatDateOnly(row.specificDate))
+  }
+
   const weekStartMonthKey = formatMonthKey(weekStartDate.getFullYear(), weekStartDate.getMonth() + 1)
   for (const mk of sortedPlanMonthKeys) {
     if (mk >= weekStartMonthKey) break
@@ -548,7 +659,20 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
   }
 
+  const backlogStartTotal = Array.from(backlogByCourseId.values()).reduce((acc, v) => acc + v, 0)
+  const totalRemainingStart = Array.from(totalRemainingByCourseId.values()).reduce((acc, v) => acc + v, 0)
+
   let createdLessonsCount = 0
+  let createdSlotOccurrences = 0
+  let skippedNoCandidateSlots = 0
+  let skippedLabConflictSlots = 0
+  let streakOverrideSlots = 0
+  let totalFreeSlots = 0
+  let totalBlockedUniqueSlots = 0
+
+  for (const slotIds of specialEventSlots.values()) {
+    totalBlockedUniqueSlots += slotIds.length
+  }
 
   const hashToInt = (value: string) => {
     let hash = 0
@@ -566,6 +690,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     const dateKey = currentDate.toISOString()
     const occupiedSlotIds = specialEventSlots.get(dateKey) || []
     const freeSlots = timeSlots.filter((s) => !occupiedSlotIds.includes(s.id))
+    totalFreeSlots += freeSlots.length
 
     const monthKey = formatMonthKey(currentDate.getFullYear(), currentDate.getMonth() + 1)
 
@@ -586,6 +711,25 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
 
     const usedCourseIdsToday = new Set<string>()
 
+    // Tempo: ayın geri kalan iş günü sayısı (en az 1)
+    const remainingWorkingDaysInMonth = countRemainingWorkingDaysInMonth(currentDate)
+
+    // Streak: bir önceki 2 iş günü
+    const prevWorkDay = getPrevWorkingDay(currentDate)
+    const prevPrevWorkDay = getPrevWorkingDay(prevWorkDay)
+    const prevWorkDayStr = prevWorkDay >= termStartDay ? formatDateOnly(prevWorkDay) : null
+    const prevPrevWorkDayStr = prevPrevWorkDay >= termStartDay ? formatDateOnly(prevPrevWorkDay) : null
+
+    const computeStreakLen = (courseId: string) => {
+      const set = scheduledDateStrsByCourseId.get(courseId)
+      if (!set) return 0
+      const hasPrev = prevWorkDayStr ? set.has(prevWorkDayStr) : false
+      const hasPrevPrev = prevPrevWorkDayStr ? set.has(prevPrevWorkDayStr) : false
+      if (hasPrev && hasPrevPrev) return 2
+      if (hasPrev) return 1
+      return 0
+    }
+
     for (const slot of freeSlots) {
       // Aday havuzu: bu ay planı olanlar + geçmiş aylardan backlog'u olanlar
       const monthPlannedCourseIds = (plansByMonthKey.get(monthKey) || []).map((p) => p.course.id)
@@ -594,7 +738,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
         if (backlog > 0) candidateCourseIds.add(courseId)
       }
 
-      const candidates = Array.from(candidateCourseIds)
+      const candidatesAll = Array.from(candidateCourseIds)
         .map((courseId) => courseMetaById.get(courseId))
         .filter((c): c is CourseMeta => !!c)
         .filter((c) => {
@@ -604,20 +748,44 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
           const totalRem = totalRemainingByCourseId.get(c.id) || 0
           return (monthlyRem + backlog) > 0 && totalRem > 0
         })
-        .sort((a, b) => {
-          const aMonthly = (monthRemaining.get(a.id) || 0) + (backlogByCourseId.get(a.id) || 0)
-          const bMonthly = (monthRemaining.get(b.id) || 0) + (backlogByCourseId.get(b.id) || 0)
-          if (bMonthly !== aMonthly) return bMonthly - aMonthly
-          const aTotal = totalRemainingByCourseId.get(a.id) || 0
-          const bTotal = totalRemainingByCourseId.get(b.id) || 0
-          if (bTotal !== aTotal) return bTotal - aTotal
-          const aTie = hashToInt(`${a.id}-${dateKey}-${slot.slotNumber}`)
-          const bTie = hashToInt(`${b.id}-${dateKey}-${slot.slotNumber}`)
-          return aTie - bTie
-        })
+
+      // Maks 2 iş günü üst üste: 3. gün üst üste yazmayı öncelikle engelle.
+      // Eğer bu filtre yüzünden hiç aday kalmazsa (nadir), override ederek yine de ders yaz.
+      const candidatesStrict = candidatesAll.filter((c) => computeStreakLen(c.id) < 2)
+      if (candidatesStrict.length === 0 && candidatesAll.length > 0) {
+        streakOverrideSlots += 1
+      }
+
+      const candidates = (candidatesStrict.length > 0 ? candidatesStrict : candidatesAll).sort((a, b) => {
+        const aNeed = (monthRemaining.get(a.id) || 0) + (backlogByCourseId.get(a.id) || 0)
+        const bNeed = (monthRemaining.get(b.id) || 0) + (backlogByCourseId.get(b.id) || 0)
+
+        // Tempo: need / remainingWorkingDaysInMonth (yüksek tempo önce)
+        const aPace = aNeed / remainingWorkingDaysInMonth
+        const bPace = bNeed / remainingWorkingDaysInMonth
+        if (bPace !== aPace) return bPace - aPace
+
+        // Arka arkaya yığılmayı kır: streak kısa olanı tercih et
+        const aStreak = computeStreakLen(a.id)
+        const bStreak = computeStreakLen(b.id)
+        if (aStreak !== bStreak) return aStreak - bStreak
+
+        // Kalan ihtiyaç büyük olan öne
+        if (bNeed !== aNeed) return bNeed - aNeed
+
+        // Dönem toplam kalanı büyük olan öne
+        const aTotal = totalRemainingByCourseId.get(a.id) || 0
+        const bTotal = totalRemainingByCourseId.get(b.id) || 0
+        if (bTotal !== aTotal) return bTotal - aTotal
+
+        const aTie = hashToInt(`${a.id}-${dateKey}-${slot.slotNumber}`)
+        const bTie = hashToInt(`${b.id}-${dateKey}-${slot.slotNumber}`)
+        return aTie - bTie
+      })
 
       const assignedCourse = candidates[0]
       if (!assignedCourse) {
+        skippedNoCandidateSlots += 1
         continue
       }
 
@@ -634,6 +802,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
         })
 
         if (labConflict) {
+          skippedLabConflictSlots += 1
           continue
         }
       }
@@ -653,8 +822,12 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
       })
 
       createdLessonsCount += classes.length
+      createdSlotOccurrences += 1
 
       usedCourseIdsToday.add(assignedCourse.id)
+
+      // Streak datasını güncelle (günde 1 kez yazıldığı varsayımıyla date bazında yeterli)
+      scheduledDateStrsByCourseId.get(assignedCourse.id)?.add(formatDateOnly(currentDate))
 
       // Önce backlog'u tüket, backlog yoksa ay içi kalanını azalt
       const currentBacklog = backlogByCourseId.get(assignedCourse.id) || 0
@@ -671,12 +844,51 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
   }
 
+  const backlogEndTotal = Array.from(backlogByCourseId.values()).reduce((acc, v) => acc + v, 0)
+  const totalRemainingEnd = Array.from(totalRemainingByCourseId.values()).reduce((acc, v) => acc + v, 0)
+
+  const topBacklog = Array.from(backlogByCourseId.entries())
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([courseId, remaining]) => {
+      const meta = courseMetaById.get(courseId)
+      return {
+        courseId,
+        code: meta?.code || courseId,
+        name: meta?.name || '',
+        remaining,
+      }
+    })
+
   return {
     message: `${weekNumber}. hafta programı oluşturuldu`,
     createdLessons: specialEvents.length + createdLessonsCount,
     weekNumber,
     weekStartDate,
     weekEndDate,
+    debug: {
+      weekNumber,
+      weekStartDate,
+      weekEndDate,
+      classesCount: classes.length,
+      timeSlotsCount: timeSlots.length,
+      workingDaysCount: schedulableDates.length,
+      specialEventUniqueSlots,
+      peReservedUniqueSlots,
+      totalBlockedUniqueSlots,
+      totalFreeSlots,
+      createdSlotOccurrences,
+      createdLessonsRows: createdLessonsCount,
+      skippedNoCandidateSlots,
+      skippedLabConflictSlots,
+      streakOverrideSlots,
+      backlogStartTotal,
+      backlogEndTotal,
+      totalRemainingStart,
+      totalRemainingEnd,
+      topBacklog,
+    },
   }
 }
 
