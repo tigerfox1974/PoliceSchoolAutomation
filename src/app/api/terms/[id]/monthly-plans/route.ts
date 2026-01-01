@@ -142,65 +142,99 @@ export async function POST(
       )
     }
 
-    // Her TermCoursePlan için aylık planları oluştur
+    // Her TermCoursePlan için aylık planları EŞİT dağıt (dönem aylarına göre)
+    // Not: Kullanıcı sonrasında manuel düzenleyebilir.
     const createdPlans: any[] = []
     const updatedPlans: any[] = []
+    const deletedPlans: any[] = []
     const errors: string[] = []
 
+    // Ayları kronolojik sırala
+    const sortedMonths = [...months].sort((a, b) => (a.year - b.year) || (a.month - b.month))
+    const allowedKeys = new Set(sortedMonths.map((m) => `${m.year}-${m.month}`))
+
     for (const termPlan of termPlans) {
-      // Mevcut aylık planları kontrol et
-      const existingMonths = termPlan.monthlyPlans.map(mp => `${mp.year}-${mp.month}`)
-      const missingMonths = months.filter(m => !existingMonths.includes(`${m.year}-${m.month}`))
-      
-      // Eğer tüm aylar mevcutsa atla
-      if (missingMonths.length === 0) {
-        continue
+      // Dönem dışında kalan aylık planları temizle (actualHours > 0 ise dokunma)
+      for (const mp of termPlan.monthlyPlans) {
+        const key = `${mp.year}-${mp.month}`
+        if (!allowedKeys.has(key) && (mp.actualHours || 0) === 0) {
+          try {
+            const del = await prisma.monthlyCoursePlan.delete({ where: { id: mp.id } })
+            deletedPlans.push(del)
+          } catch (error: any) {
+            errors.push(`"${termPlan.course.name}" için ${mp.month}/${mp.year} dönem dışı planı silinemedi: ${error.message}`)
+          }
+        }
       }
 
-      // Mevcut planlanan saatleri hesapla
-      const existingPlannedHours = termPlan.monthlyPlans.reduce((sum, mp) => sum + mp.plannedHours, 0)
-      const remainingHours = termPlan.totalPlannedHours - existingPlannedHours
-      
-      // Kalan saatleri eksik aylara dağıt
-      const hoursPerMonth = Math.floor(remainingHours / missingMonths.length)
-      const remainder = remainingHours % missingMonths.length
+      const monthCount = sortedMonths.length
+      const total = Math.max(0, termPlan.totalPlannedHours || 0)
+      const base = Math.floor(total / monthCount)
+      const remainder = total % monthCount
 
-      // İlk eksik aylara kalan saatleri ekle
-      for (let i = 0; i < missingMonths.length; i++) {
-        const monthHours = hoursPerMonth + (i < remainder ? 1 : 0)
+      // Var olan actualHours'u koru; plannedHours her zaman >= actualHours olsun.
+      const existingByKey = new Map<string, { id: string; actualHours: number }>()
+      for (const mp of termPlan.monthlyPlans) {
+        const key = `${mp.year}-${mp.month}`
+        existingByKey.set(key, { id: mp.id, actualHours: mp.actualHours || 0 })
+      }
+
+      for (let i = 0; i < sortedMonths.length; i++) {
+        const m = sortedMonths[i]
+        const key = `${m.year}-${m.month}`
+        const desired = base + (i < remainder ? 1 : 0)
+        const existing = existingByKey.get(key)
+        const actual = existing?.actualHours ?? 0
+
+        // plannedHours, actualHours'tan küçük olamaz
+        const plannedHours = Math.max(desired, actual)
 
         try {
-          const monthlyPlan = await prisma.monthlyCoursePlan.create({
-            data: {
+          const upserted = await prisma.monthlyCoursePlan.upsert({
+            where: {
+              termCoursePlanId_month_year: {
+                termCoursePlanId: termPlan.id,
+                month: m.month,
+                year: m.year,
+              },
+            },
+            create: {
               termCoursePlanId: termPlan.id,
-              month: missingMonths[i].month,
-              year: missingMonths[i].year,
-              plannedHours: monthHours,
-              actualHours: 0,
+              month: m.month,
+              year: m.year,
+              plannedHours,
+              actualHours: actual,
+            },
+            update: {
+              plannedHours,
+              // actualHours'a dokunma
             },
           })
 
-          createdPlans.push(monthlyPlan)
-        } catch (error: any) {
-          // Unique constraint hatası (zaten varsa) atla
-          if (error.code === 'P2002') {
-            continue
+          if (existing) {
+            updatedPlans.push(upserted)
+          } else {
+            createdPlans.push(upserted)
           }
-          errors.push(`"${termPlan.course.name}" için ${missingMonths[i].month}/${missingMonths[i].year} planı oluşturulamadı: ${error.message}`)
+        } catch (error: any) {
+          errors.push(`"${termPlan.course.name}" için ${m.month}/${m.year} planı güncellenemedi: ${error.message}`)
         }
       }
     }
 
-    const totalCreated = createdPlans.length
-    const message = totalCreated > 0 
-      ? `${totalCreated} aylık plan oluşturuldu${updatedPlans.length > 0 ? `, ${updatedPlans.length} plan güncellendi` : ''}`
-      : 'Tüm aylık planlar zaten mevcut'
+    const messageParts: string[] = []
+    messageParts.push(`Aylık planlar dönem aylarına göre eşit dağıtıldı (${sortedMonths.length} ay)`)
+    messageParts.push(`Oluşturulan: ${createdPlans.length}`)
+    messageParts.push(`Güncellenen: ${updatedPlans.length}`)
+    if (deletedPlans.length > 0) messageParts.push(`Silinen (dönem dışı, actual=0): ${deletedPlans.length}`)
+    const message = messageParts.join(' | ')
 
     return NextResponse.json({
       success: true,
       message,
-      createdCount: totalCreated,
+      createdCount: createdPlans.length,
       updatedCount: updatedPlans.length,
+      deletedCount: deletedPlans.length,
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error) {

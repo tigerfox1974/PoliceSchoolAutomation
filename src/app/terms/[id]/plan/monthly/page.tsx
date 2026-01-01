@@ -157,10 +157,14 @@ export default function MonthlyPlanPage() {
   }
 
   const handleGenerateMonthlyPlans = async () => {
+    const isUpdate = hasMonthlyPlans
+
     setConfirmDialog({
       isOpen: true,
-      title: '📅 Aylık Planları Oluştur',
-      message: 'Tüm dersler için aylık planlar otomatik olarak oluşturulacak. Devam etmek istiyor musunuz?',
+      title: isUpdate ? '📅 Aylık Planları Güncelle (Eşit Dağıt)' : '📅 Aylık Planları Oluştur (Eşit Dağıt)',
+      message: isUpdate
+        ? 'Aylık planlar dönem aylarına göre yeniden eşit dağıtılacak. Gerçekleşen saatler (actual) korunur. Devam etmek istiyor musunuz?'
+        : 'Tüm dersler için aylık planlar oluşturulacak ve dönem aylarına göre eşit dağıtılacak. Gerçekleşen saatler (actual) korunur. Devam etmek istiyor musunuz?',
       type: 'info',
       onConfirm: async () => {
         setGenerating(true)
@@ -171,10 +175,10 @@ export default function MonthlyPlanPage() {
           const data = await res.json()
           
           if (res.ok) {
-            showToast(data.message || 'Aylık planlar başarıyla oluşturuldu', 'success')
+            showToast(data.message || (isUpdate ? 'Aylık planlar başarıyla güncellendi' : 'Aylık planlar başarıyla oluşturuldu'), 'success')
             fetchPlans()
           } else {
-            showToast(data.error || 'Aylık planlar oluşturulamadı', 'error')
+            showToast(data.error || (isUpdate ? 'Aylık planlar güncellenemedi' : 'Aylık planlar oluşturulamadı'), 'error')
           }
         } catch (error) {
           console.error('Generate monthly plans error:', error)
@@ -1075,7 +1079,7 @@ export default function MonthlyPlanPage() {
           <Icon icon="ph:calendar-plus-bold" width="64" className="mx-auto mb-4 text-blue-500" />
           <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">Aylık planlar henüz oluşturulmamış</p>
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-            Yukarıdaki "Aylık Planları Oluştur" butonuna tıklayarak otomatik oluşturabilirsiniz
+            Yukarıdaki "Aylık Planları Oluştur" butonuna tıklayarak otomatik oluşturup eşit dağıtabilirsiniz
           </p>
         </div>
       ) : (

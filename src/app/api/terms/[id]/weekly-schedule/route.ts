@@ -31,7 +31,6 @@ async function getOrCreateDefaultTimeSlots() {
     { slotNumber: 5, startTime: '12:00', endTime: '12:45', isBreak: false },
     { slotNumber: 6, startTime: '12:45', endTime: '13:45', isBreak: true },
     { slotNumber: 7, startTime: '14:00', endTime: '14:45', isBreak: false },
-    { slotNumber: 8, startTime: '15:00', endTime: '15:45', isBreak: false },
   ]
 
   await prisma.timeSlot.createMany({

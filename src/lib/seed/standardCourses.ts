@@ -33,6 +33,15 @@ export const POLICE_STANDARD_COURSES: StandardCourseSeed[] = [
   { name: 'Ingilizce', code: 'ING101', fourMonthHours: 30, sixMonthHours: 42, requiresLab: false, programScope: 'COMMON' },
   { name: 'Sosyal Psikoloji', code: 'PSI101', fourMonthHours: 10, sixMonthHours: 14, requiresLab: false, programScope: 'COMMON' },
   { name: 'Saglik Bilgisi ve Ilk Yardim', code: 'ILK101', fourMonthHours: 35, sixMonthHours: 48, requiresLab: false, programScope: 'COMMON' },
+
+  // KONFERANSLAR (18 saat)
+  { name: 'Yangin ve Tabi Afetler', code: 'KNF101', fourMonthHours: 2, sixMonthHours: 3, requiresLab: false, programScope: 'POLIS_ONLY', courseType: 'CONFERENCE' },
+  { name: 'Uyusturucu Maddeler ve Zararlari', code: 'KNF102', fourMonthHours: 2, sixMonthHours: 3, requiresLab: false, programScope: 'COMMON', courseType: 'CONFERENCE' },
+  { name: 'Polis - Halkla Iliskiler', code: 'KNF103', fourMonthHours: 2, sixMonthHours: 3, requiresLab: false, programScope: 'POLIS_ONLY', courseType: 'CONFERENCE' },
+  { name: 'Kriminalistik Konulari', code: 'KNF104', fourMonthHours: 6, sixMonthHours: 8, requiresLab: false, programScope: 'POLIS_ONLY', courseType: 'CONFERENCE' },
+  { name: 'Guvenlik Kuvvetleri Komutanligi Tanitimi ve Bilgilendirme Konferansi', code: 'KNF105', fourMonthHours: 2, sixMonthHours: 3, requiresLab: false, programScope: 'POLIS_ONLY', courseType: 'CONFERENCE' },
+  { name: 'Tarih', code: 'KNF106', fourMonthHours: 2, sixMonthHours: 3, requiresLab: false, programScope: 'COMMON', courseType: 'CONFERENCE' },
+  { name: 'Beden Dili ve Kriz Anlarinda Iletisim ve Duygu Kontrolu', code: 'KNF107', fourMonthHours: 2, sixMonthHours: 3, requiresLab: false, programScope: 'COMMON', courseType: 'CONFERENCE' },
 ]
 
 export const FIRE_STANDARD_COURSES: StandardCourseSeed[] = [
