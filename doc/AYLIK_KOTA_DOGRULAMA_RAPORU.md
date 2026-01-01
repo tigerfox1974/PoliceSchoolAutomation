@@ -4,6 +4,7 @@
 - TermId: cmjpto8ae0000bncc1gqr5kgj
 - Dönem Tarih Aralığı: 2026-02-02 → 2026-06-01
 - Kural: (courseId + specificDate) DISTINCT = 1 saat
+- Not: Carry-over (aydan aya devretme) açıkken ay bazında sapmalar normaldir; ana hedef dönem toplamlarının tutmasıdır.
 
 ## Aylık Toplamlar
 | Ay | Planlanan | Gerçekleşen | Fark |
@@ -182,15 +183,16 @@
 |---|---|---:|---:|---:|
 | BILGISAYAR-ESBA | ESBA | 1 | 1 | 0 |
 
-## Uyarı: Planda Olmayan Ama Yazılan Dersler
-| Ay | CourseId | Gerçekleşen |
-|---|---|---:|
-| 2026-05 | cmjrigud7000fbpg1r4sefy7h | 1 |
-| 2026-05 | cmjrigudi0013bpg1slv23vkx | 1 |
-| 2026-05 | cmjrigud8000hbpg1rvn6bqto | 1 |
-| 2026-05 | cmjrigudg000zbpg1dxp5leep | 1 |
-| 2026-05 | cmjrigud9000jbpg1flyuxtij | 1 |
+## Not: Bu Ay Planlı Değil Ama Yazılan Dersler (Carry-Over)
+| Ay | Ders Kodu | Ders Adı | Gerçekleşen |
+|---|---|---|---:|
+| 2026-05 | BILGISAYAR-ESBA | ESBA | 1 |
+| 2026-05 | BEDENDILIV | BEDEN DİLİ VE KRİZ ANLARINDA İLETİŞİM VE DUYGU KONTROLÜ | 1 |
+| 2026-05 | BILGISAYAR-KBS | KBS | 1 |
+| 2026-05 | POLISHALKL | POLİS - HALKLA İLİŞKİLER | 1 |
+| 2026-05 | BILGISAYAR-BHPPORTAL | BHP (Portal) | 1 |
 
 ## Özet
 - Plan satırı (ay+ders): 104
-- Uyuşmayan satır sayısı (fark ≠ 0): 63
+- Aylık sapma satırı (ay+ders, fark ≠ 0): 63
+- Dönem toplam sapma satırı (ders, fark ≠ 0): 0

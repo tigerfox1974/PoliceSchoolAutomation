@@ -199,6 +199,7 @@ async function main() {
     summaryLines.push(`- TermId: ${term.id}`)
     summaryLines.push(`- Dönem Tarih Aralığı: ${formatDate(term.startDate)} → ${formatDate(term.endDate)}`)
     summaryLines.push(`- Kural: (courseId + specificDate) DISTINCT = 1 saat`)
+    summaryLines.push(`- Not: Carry-over (aydan aya devretme) açıkken ay bazında sapmalar normaldir; ana hedef dönem toplamlarının tutmasıdır.`)
     summaryLines.push('')
 
     // Ay toplamları
@@ -323,8 +324,10 @@ async function main() {
 
     // Toplam plan (monthly planların toplamı)
     const totalPlannedByCourseId = new Map<string, { planned: number; code: string; name: string }>()
+    const courseInfoById = new Map<string, { code: string; name: string }>()
     for (const mp of monthlyPlans) {
       const course = mp.termCoursePlan.course
+      courseInfoById.set(course.id, { code: course.code, name: course.name })
       const current = totalPlannedByCourseId.get(course.id)
       totalPlannedByCourseId.set(course.id, {
         planned: (current?.planned || 0) + mp.plannedHours,
@@ -351,6 +354,8 @@ async function main() {
       }
     })
 
+    const termMismatchCount = totalRows.filter((r) => r.diff !== 0).length
+
     totalRows.sort((a, b) => a.code.localeCompare(b.code, 'tr'))
     for (const r of totalRows) {
       summaryLines.push(`| ${escapeMd(r.code)} | ${escapeMd(r.name)} | ${r.planned} | ${r.actual} | ${r.diff} |`)
@@ -359,7 +364,7 @@ async function main() {
 
     summaryLines.push('## Ders Bazında Detay (Ay-Ay)')
 
-    let mismatchCount = 0
+    let monthlyMismatchCount = 0
 
     for (const mk of sortedMonthKeys) {
       const plannedMap = plannedByMonth.get(mk) || new Map()
@@ -370,7 +375,7 @@ async function main() {
       for (const [courseId, p] of plannedMap.entries()) {
         const actual = actualMap.get(courseId) || 0
         const diff = actual - p.planned
-        if (diff !== 0) mismatchCount++
+        if (diff !== 0) monthlyMismatchCount++
         rows.push({
           code: p.courseCode,
           name: p.courseName,
@@ -393,7 +398,7 @@ async function main() {
       summaryLines.push('')
     }
 
-    // Planı olmayan ama planlı aylar içinde gerçekleşen dersler (edge-case)
+    // Bu ay planı olmayan (başka ay(lar)da planlı) ama bu ay içinde gerçekleşen dersler (carry-over ile normal)
     const extraActual: Array<{ mk: string; courseId: string; count: number }> = []
     for (const [mk, aMap] of actualByMonth.entries()) {
       const pMap = plannedByMonth.get(mk) || new Map()
@@ -403,18 +408,20 @@ async function main() {
     }
 
     if (extraActual.length > 0) {
-      summaryLines.push('## Uyarı: Planda Olmayan Ama Yazılan Dersler')
-      summaryLines.push('| Ay | CourseId | Gerçekleşen |')
-      summaryLines.push('|---|---|---:|')
+      summaryLines.push('## Not: Bu Ay Planlı Değil Ama Yazılan Dersler (Carry-Over)')
+      summaryLines.push('| Ay | Ders Kodu | Ders Adı | Gerçekleşen |')
+      summaryLines.push('|---|---|---|---:|')
       for (const r of extraActual.sort((a, b) => a.mk.localeCompare(b.mk))) {
-        summaryLines.push(`| ${r.mk} | ${r.courseId} | ${r.count} |`)
+        const info = courseInfoById.get(r.courseId)
+        summaryLines.push(`| ${r.mk} | ${escapeMd(info?.code || r.courseId)} | ${escapeMd(info?.name || '-') } | ${r.count} |`)
       }
       summaryLines.push('')
     }
 
     summaryLines.push(`## Özet`)
     summaryLines.push(`- Plan satırı (ay+ders): ${monthlyPlans.length}`)
-    summaryLines.push(`- Uyuşmayan satır sayısı (fark ≠ 0): ${mismatchCount}`)
+    summaryLines.push(`- Aylık sapma satırı (ay+ders, fark ≠ 0): ${monthlyMismatchCount}`)
+    summaryLines.push(`- Dönem toplam sapma satırı (ders, fark ≠ 0): ${termMismatchCount}`)
     summaryLines.push('')
 
     const outPath = args.out
@@ -426,7 +433,8 @@ async function main() {
 
     console.log(`Rapor yazıldı: ${outPath}`)
     console.log(`Genel toplam fark: ${totalActualAll - totalPlannedAll}`)
-    console.log(`Uyuşmayan satır sayısı: ${mismatchCount}`)
+    console.log(`Aylık sapma satırı (ay+ders): ${monthlyMismatchCount}`)
+    console.log(`Dönem toplam sapma satırı (ders): ${termMismatchCount}`)
   } finally {
     await prisma.$disconnect()
   }
