@@ -15,6 +15,35 @@ interface WeekGenerateResult {
   error?: string
 }
 
+async function getOrCreateDefaultTimeSlots() {
+  const existing = await prisma.timeSlot.findMany({
+    orderBy: { slotNumber: 'asc' },
+  })
+
+  if (existing.length > 0) return existing
+
+  // Standart KKTC Polis Okulu mesai saatleri (global TimeSlot tablosu)
+  const defaults = [
+    { slotNumber: 1, startTime: '08:00', endTime: '08:45', isBreak: false },
+    { slotNumber: 2, startTime: '09:00', endTime: '09:45', isBreak: false },
+    { slotNumber: 3, startTime: '10:00', endTime: '10:45', isBreak: false },
+    { slotNumber: 4, startTime: '11:00', endTime: '11:45', isBreak: false },
+    { slotNumber: 5, startTime: '12:00', endTime: '12:45', isBreak: false },
+    { slotNumber: 6, startTime: '12:45', endTime: '13:45', isBreak: true },
+    { slotNumber: 7, startTime: '14:00', endTime: '14:45', isBreak: false },
+    { slotNumber: 8, startTime: '15:00', endTime: '15:45', isBreak: false },
+  ]
+
+  await prisma.timeSlot.createMany({
+    data: defaults,
+    skipDuplicates: true,
+  })
+
+  return await prisma.timeSlot.findMany({
+    orderBy: { slotNumber: 'asc' },
+  })
+}
+
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const termId = params.id
@@ -85,9 +114,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       ],
     })
 
-    const timeSlots = await prisma.timeSlot.findMany({
-      orderBy: { slotNumber: 'asc' },
-    })
+    const timeSlots = await getOrCreateDefaultTimeSlots()
 
     const lessonsWithCounters = await Promise.all(
       dailyLessons.map(async (lesson) => {
@@ -244,6 +271,16 @@ async function generateAllWeeks(termId: string) {
       return NextResponse.json({ error: 'Dönem ayarları bulunamadı' }, { status: 404 })
     }
 
+    if (!term.classes || term.classes.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'Sınıf bulunamadı',
+          details: 'Bu dönem için hiç sınıf tanımlanmamış. Dönem > Sınıflar bölümünden en az 1 sınıf ekleyin (örn: A).',
+        },
+        { status: 400 }
+      )
+    }
+
     const totalWeeks = calculateTotalWeeks(term.startDate, term.endDate)
     console.log(`Generating programs for all ${totalWeeks} weeks`)
 
@@ -347,18 +384,16 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     },
   })
 
-  const timeSlots = await prisma.timeSlot.findMany({
-    orderBy: { slotNumber: 'asc' },
-  })
+  const timeSlots = await getOrCreateDefaultTimeSlots()
 
   if (timeSlots.length === 0) {
-    throw new Error('TimeSlot bulunamadı')
+    throw new Error('TimeSlot bulunamadı (otomatik oluşturma başarısız)')
   }
 
   const classes = term.classes || []
 
   if (classes.length === 0) {
-    throw new Error('Sınıf bulunamadı')
+    throw new Error('Sınıf bulunamadı. Bu dönem için sınıf tanımlayın (Dönem > Sınıflar; örn: A).')
   }
 
   const specialEvents = await createAllSpecialEvents({

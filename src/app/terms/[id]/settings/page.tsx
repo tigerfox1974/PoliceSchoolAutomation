@@ -136,7 +136,7 @@ export default function TermSettingsPage() {
       const end = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`
 
       slots.push({
-        slotNumber: i + 1, // 7, 8
+        slotNumber: i,
         startTime: start,
         endTime: end,
         isBreak: false,

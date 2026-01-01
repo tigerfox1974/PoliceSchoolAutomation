@@ -5,9 +5,14 @@ import { prisma } from '@/lib/prisma'
 
 export default async function HomePage() {
   // Ders sayısını veritabanından çek
-  const courseCount = await prisma.course.count({
-    where: { isDeleted: false }
-  })
+  let courseCount = 0
+  try {
+    courseCount = await prisma.course.count({
+      where: { isDeleted: false },
+    })
+  } catch (error) {
+    console.error('HomePage courseCount error:', error)
+  }
   const modules = [
     {
       title: '🎓 Dönem Yönetimi',
