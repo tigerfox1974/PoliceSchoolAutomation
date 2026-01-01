@@ -211,7 +211,7 @@ export default function WeeklySchedulePage() {
 
   // Tüm dersleri topla ve her birine unique renk ata
   const courseColorMap = useMemo(() => {
-    if (!schedule) return new Map<string, any>()
+    if (!schedule || !schedule.weekDays) return new Map<string, any>()
     
     const colorMap = new Map<string, any>()
     const allCourseIds = new Set<string>()
@@ -458,7 +458,7 @@ export default function WeeklySchedulePage() {
       </div>
 
       {/* Schedule Table */}
-      {!schedule || schedule.totalLessons === 0 ? (
+      {!schedule || !schedule.weekDays || schedule.totalLessons === 0 ? (
         <div className="text-center py-12 bg-gray-100 dark:bg-gray-800 rounded-lg">
           <Icon icon="ph:calendar-blank-bold" width="64" className="mx-auto mb-4 text-gray-400" />
           <p className="text-xl text-gray-600 dark:text-gray-400">Haftalık program henüz oluşturulmamış</p>
@@ -475,12 +475,18 @@ export default function WeeklySchedulePage() {
                   <th className="px-4 py-3 text-left text-sm font-bold border-r border-blue-500 min-w-[150px]">
                     TARİH
                   </th>
-                  {[1, 2, 3, 4, 5, 6, 7].map((slot) => (
-                    <th key={slot} className="px-3 py-3 text-center text-xs font-bold border-r border-blue-500 min-w-[140px]">
-                      <div>{slot}. DERS</div>
-                      <div className="text-xs opacity-90 mt-1">08:15-09:00</div>
-                    </th>
-                  ))}
+                  {schedule.weekDays[0]?.slots.map((_, slotIndex) => {
+                    const lesson = schedule.weekDays.find(d => d.slots[slotIndex])?.slots[slotIndex]
+                    const timeSlot = lesson?.timeSlot
+                    return (
+                      <th key={slotIndex} className="px-3 py-3 text-center text-xs font-bold border-r border-blue-500 min-w-[140px]">
+                        <div>{slotIndex + 1}. DERS</div>
+                        <div className="text-xs opacity-90 mt-1">
+                          {timeSlot ? `${timeSlot.startTime}-${timeSlot.endTime}` : '08:15-09:00'}
+                        </div>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -524,11 +530,6 @@ export default function WeeklySchedulePage() {
                                         </span>
                                       )}
                                     </div>
-                                    {lesson.instructor && (
-                                      <div className="text-gray-600 dark:text-gray-400 mt-1 text-xs">
-                                        {lesson.instructor.firstName} {lesson.instructor.lastName}
-                                      </div>
-                                    )}
                                   </div>
                                 )
                               })()

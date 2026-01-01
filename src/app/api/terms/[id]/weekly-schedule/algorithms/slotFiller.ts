@@ -57,12 +57,22 @@ export async function fillDaySlots(
     .filter((c) => c.remainingHours > 0 && c.weeklyHours > 0)
     .sort((a, b) => b.remainingHours - a.remainingHours)
 
+  // ÇEŞİTLENDİRME: Günün index'ine göre başlangıç noktasını değiştir (slot rotasyonu)
+  const dayOfWeekIndex = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'].indexOf(dayOfWeek)
+  const courseRotationOffset = dayOfWeekIndex >= 0 ? dayOfWeekIndex : 0
+  
+  // Dersleri rotasyonla karıştır (her gün farklı sırada)
+  const rotatedCourses = [
+    ...sortedCourses.slice(courseRotationOffset),
+    ...sortedCourses.slice(0, courseRotationOffset)
+  ]
+
   // 3. Her boş slot için ders ata
   for (const slot of freeSlots) {
     // Uygun ders bul
     let assignedCourse: CourseWithRemaining | null = null
 
-    for (const course of sortedCourses) {
+    for (const course of rotatedCourses) {
       // Bu günde bu ders zaten var mı?
       const alreadyScheduledToday = await checkCourseOnDay(termId, course.id, date)
       if (alreadyScheduledToday) {
@@ -115,9 +125,9 @@ export async function fillDaySlots(
       
       if (thisWeekCount >= assignedCourse.weeklyHours) {
         // Bu hafta için bu ders dolu, listeden çıkar
-        const index = sortedCourses.indexOf(assignedCourse)
+        const index = rotatedCourses.indexOf(assignedCourse)
         if (index > -1) {
-          sortedCourses.splice(index, 1)
+          rotatedCourses.splice(index, 1)
         }
       }
     }

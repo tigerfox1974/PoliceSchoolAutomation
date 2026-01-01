@@ -103,7 +103,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         })
 
         const totalPlannedHours = termCoursePlan?.totalPlannedHours || 0
-        const counterResult = await checkCourseCounter(termId, lesson.courseId, totalPlannedHours, weekEndDate)
+        // Her dersin kendi tarihi kullanılmalı (günden güne artış için)
+        const lessonDate = new Date(lesson.specificDate)
+        lessonDate.setDate(lessonDate.getDate() + 1) // Ertesi günün başını kullan (o güne kadar olanları say)
+        const counterResult = await checkCourseCounter(termId, lesson.courseId, totalPlannedHours, lessonDate)
 
         return {
           ...lesson,
@@ -113,19 +116,62 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       })
     )
 
+    // Format data into weekDays structure for frontend
+    const weekDays = []
+    const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi']
+    const dayOfWeekNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+    
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const currentDate = new Date(weekStartDate)
+      currentDate.setDate(currentDate.getDate() + dayOffset)
+      const dateStr = currentDate.toISOString().split('T')[0]
+      const dayOfWeek = currentDate.getDay()
+      
+      const daySlots = timeSlots.map((timeSlot) => {
+        const lesson = lessonsWithCounters.find(
+          (l) => l.specificDate.toISOString().split('T')[0] === dateStr && l.timeSlot.slotNumber === timeSlot.slotNumber
+        )
+        
+        if (lesson) {
+          return {
+            id: lesson.id,
+            course: lesson.course ? {
+              id: lesson.course.id,
+              name: lesson.course.name,
+              code: lesson.course.code,
+              occurrenceCount: lesson.occurrenceCount,
+              totalPlannedHours: lesson.totalPlannedHours,
+            } : null,
+            specialEvent: lesson.isSpecialEvent ? {
+              id: lesson.id,
+              eventTitle: lesson.course?.name || 'Özel Etkinlik',
+            } : null,
+            instructor: lesson.instructor,
+            class: lesson.class,
+            timeSlot: lesson.timeSlot,
+          }
+        }
+        return null
+      })
+      
+      weekDays.push({
+        date: dateStr,
+        dayOfWeek: dayOfWeekNames[dayOfWeek],
+        dayName: dayNames[dayOfWeek],
+        slots: daySlots,
+      })
+    }
+
+    const totalWeeksCalculated = calculateTotalWeeks(term.startDate, term.endDate)
+
     return NextResponse.json({
+      termId,
       weekNumber,
-      weekStartDate,
-      weekEndDate,
-      dailyLessons: lessonsWithCounters,
-      classes: term.classes,
-      timeSlots,
-      term: {
-        id: term.id,
-        name: term.name,
-        startDate: term.startDate,
-        endDate: term.endDate,
-      },
+      weekStartDate: weekStartDate.toISOString().split('T')[0],
+      weekEndDate: weekEndDate.toISOString().split('T')[0],
+      weekDays,
+      totalLessons: lessonsWithCounters.length,
+      totalWeeks: totalWeeksCalculated,
     })
   } catch (error) {
     console.error('GET /weekly-schedule error:', error)
@@ -351,7 +397,6 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
           course: {
             include: {
               courseInstructors: {
-                where: { isActive: true },
                 include: {
                   instructor: true,
                 },
@@ -374,7 +419,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   }
 
   const courseIds = monthlyPlans.map((mp) => mp.termCoursePlan.courseId)
-  const counters = await getCourseCounters(termId, weekEndDate, courseIds)
+  const counters = await getCourseCounters(termId, weekStartDate, courseIds)
   const remainingWeeks = calculateRemainingWeeks(weekEndDate, term.endDate)
 
   interface CourseWithRemaining {
@@ -389,6 +434,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     instructorId?: string
   }
 
+  // Tüm sınıflar için ortak coursesWithRemaining listesi
   const coursesWithRemaining: CourseWithRemaining[] = []
 
   for (const monthlyPlan of monthlyPlans) {
@@ -437,12 +483,20 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     const occupiedSlotIds = specialEventSlots.get(dateKey) || []
     const freeSlots = timeSlots.filter((s) => !occupiedSlotIds.includes(s.id))
 
+    // ROTASYON: Her gün dersleri farklı sırada yaz (dayOffset kadar kaydır)
     const sortedCourses = [...coursesWithRemaining]
       .filter((c) => c.remainingHours > 0 && c.weeklyHours > 0)
       .sort((a, b) => b.remainingHours - a.remainingHours)
+    
+    // Günün index'ine göre rotate et (Pazartesi: 0, Salı: 1, Çarşamba: 2, ...)
+    const rotationOffset = dayOffset % (sortedCourses.length || 1)
+    const rotatedCourses = sortedCourses.length > 0 ? [
+      ...sortedCourses.slice(rotationOffset),
+      ...sortedCourses.slice(0, rotationOffset)
+    ] : []
 
     for (const classItem of classes) {
-      const classCourseCopies = JSON.parse(JSON.stringify(sortedCourses)) as CourseWithRemaining[]
+      const classCourseCopies = JSON.parse(JSON.stringify(rotatedCourses)) as CourseWithRemaining[]
 
       for (const slot of freeSlots) {
         let assignedCourse: CourseWithRemaining | null = null
@@ -507,9 +561,14 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
         assignedCourse.remainingHours--
         assignedCourse.occurrenceCount++
 
-        const thisWeekCount = createdLessons.filter((l) => l.courseId === assignedCourse!.id).length
+        // O GÜN içinde bu dersin kaç kez atandığını say (TÜM HAFTAYI DEĞİL!)
+        const todayCount = createdLessons.filter((l) => 
+          l.courseId === assignedCourse!.id && 
+          l.specificDate.toDateString() === currentDate.toDateString()
+        ).length
 
-        if (thisWeekCount >= assignedCourse.weeklyHours) {
+        // Eğer o GÜN içinde haftalık hedef kadar ders atandıysa, o dersi listeden çıkar
+        if (todayCount >= assignedCourse.weeklyHours) {
           const index = classCourseCopies.indexOf(assignedCourse)
           if (index > -1) {
             classCourseCopies.splice(index, 1)
