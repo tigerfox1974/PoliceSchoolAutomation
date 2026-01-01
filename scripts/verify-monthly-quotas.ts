@@ -317,6 +317,46 @@ async function main() {
     summaryLines.push('')
 
     // Detay
+    summaryLines.push('## Ders Bazında Dönem Toplamı')
+    summaryLines.push('| Ders Kodu | Ders Adı | Planlanan (Toplam) | Gerçekleşen (Toplam) | Fark |')
+    summaryLines.push('|---|---|---:|---:|---:|')
+
+    // Toplam plan (monthly planların toplamı)
+    const totalPlannedByCourseId = new Map<string, { planned: number; code: string; name: string }>()
+    for (const mp of monthlyPlans) {
+      const course = mp.termCoursePlan.course
+      const current = totalPlannedByCourseId.get(course.id)
+      totalPlannedByCourseId.set(course.id, {
+        planned: (current?.planned || 0) + mp.plannedHours,
+        code: course.code,
+        name: course.name,
+      })
+    }
+
+    // Toplam actual (distinct courseId+specificDate, tüm dönem)
+    const totalActualByCourseId = new Map<string, number>()
+    for (const row of rawActualDistinct) {
+      if (!row.courseId) continue
+      totalActualByCourseId.set(row.courseId, (totalActualByCourseId.get(row.courseId) || 0) + 1)
+    }
+
+    const totalRows = Array.from(totalPlannedByCourseId.entries()).map(([courseId, v]) => {
+      const actual = totalActualByCourseId.get(courseId) || 0
+      return {
+        code: v.code,
+        name: v.name,
+        planned: v.planned,
+        actual,
+        diff: actual - v.planned,
+      }
+    })
+
+    totalRows.sort((a, b) => a.code.localeCompare(b.code, 'tr'))
+    for (const r of totalRows) {
+      summaryLines.push(`| ${escapeMd(r.code)} | ${escapeMd(r.name)} | ${r.planned} | ${r.actual} | ${r.diff} |`)
+    }
+    summaryLines.push('')
+
     summaryLines.push('## Ders Bazında Detay (Ay-Ay)')
 
     let mismatchCount = 0

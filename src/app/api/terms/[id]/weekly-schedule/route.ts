@@ -19,9 +19,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   try {
     const termId = params.id
     const body = await req.json()
-    const { weekNumber, generateAll } = body
+    const { weekNumber, generateAll, regenerateAll, resetAndGenerateAll } = body
+    const shouldGenerateAll = !!(generateAll || regenerateAll || resetAndGenerateAll)
 
-    if (generateAll) {
+    if (shouldGenerateAll) {
       return await generateAllWeeks(termId)
     }
 
@@ -383,8 +384,6 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 
   // Bu haftanın (iş günleri) kapsadığı ay/yıl kombinasyonlarını bul (ay sınırı haftaları için)
-  const monthYearPairs: Array<{ month: number; year: number }> = []
-  const monthYearKeySet = new Set<string>()
   const schedulableDates: Date[] = []
 
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
@@ -395,13 +394,6 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     if (!workingDays.includes(dayName)) continue
 
     schedulableDates.push(currentDate)
-    const month = currentDate.getMonth() + 1
-    const year = currentDate.getFullYear()
-    const key = `${year}-${month}`
-    if (!monthYearKeySet.has(key)) {
-      monthYearKeySet.add(key)
-      monthYearPairs.push({ month, year })
-    }
   }
 
   if (schedulableDates.length === 0) {
@@ -414,11 +406,12 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
   }
 
+  // Aylık planlar: kapasite aşımı olursa artan saatleri sonraki aylara devredebilmek için
+  // dönem boyunca tüm aylık planları al (ay bazında strict değil, carry-over var).
   const monthlyPlans = await prisma.monthlyCoursePlan.findMany({
     where: {
       termCoursePlan: { termId },
       plannedHours: { gt: 0 },
-      OR: monthYearPairs.map((p) => ({ month: p.month, year: p.year })),
     },
     include: {
       termCoursePlan: {
@@ -437,15 +430,15 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
 
   if (monthlyPlans.length === 0) {
     return {
-      message: `${weekNumber}. hafta için aylık plan bulunamadı (${monthYearPairs
-        .map((p) => `${p.month}/${p.year}`)
-        .join(', ')})`,
+      message: `${weekNumber}. hafta için aylık plan bulunamadı`,
       createdLessons: specialEvents.length,
       weekNumber,
       weekStartDate,
       weekEndDate,
     }
   }
+
+  const formatMonthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`
 
   type CourseMeta = {
     id: string
@@ -457,11 +450,13 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   }
 
   const plansByMonthKey = new Map<string, Array<{ course: CourseMeta; monthlyPlannedHours: number }>>()
+  const plannedHoursByMonthKeyCourseId = new Map<string, Map<string, number>>()
+  const allPlanMonthKeys = new Set<string>()
   const courseMetaById = new Map<string, CourseMeta>()
 
   for (const mp of monthlyPlans) {
     const course = mp.termCoursePlan.course
-    const monthKey = `${mp.year}-${mp.month}`
+    const monthKey = formatMonthKey(mp.year, mp.month)
     const firstInstructor = course.courseInstructors[0]?.instructor?.id || null
     const meta: CourseMeta = {
       id: course.id,
@@ -475,7 +470,13 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     courseMetaById.set(meta.id, meta)
     if (!plansByMonthKey.has(monthKey)) plansByMonthKey.set(monthKey, [])
     plansByMonthKey.get(monthKey)!.push({ course: meta, monthlyPlannedHours: mp.plannedHours })
+
+    if (!plannedHoursByMonthKeyCourseId.has(monthKey)) plannedHoursByMonthKeyCourseId.set(monthKey, new Map())
+    plannedHoursByMonthKeyCourseId.get(monthKey)!.set(meta.id, mp.plannedHours)
+    allPlanMonthKeys.add(monthKey)
   }
+
+  const sortedPlanMonthKeys = Array.from(allPlanMonthKeys).sort()
 
   // Toplam sayaç (dönem geneli) - bu haftanın başından ÖNCE
   const allCourseIds = Array.from(courseMetaById.keys())
@@ -494,45 +495,57 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   previousDay.setDate(previousDay.getDate() - 1)
   previousDay.setHours(23, 59, 59, 999)
 
-  const monthlyRemainingByMonthKey = new Map<string, Map<string, number>>()
+  // Tüm aylar için gerçekleşeni tek sorguda çek (distinct courseId+specificDate)
+  const distinctLessonsUpToPreviousDay = await prisma.dailyLesson.findMany({
+    where: {
+      termId,
+      courseId: { in: allCourseIds },
+      specificDate: { lte: previousDay },
+      isCancelled: false,
+      isSpecialEvent: false,
+    },
+    select: { courseId: true, specificDate: true },
+    distinct: ['courseId', 'specificDate'],
+  })
 
-  for (const { month, year } of monthYearPairs) {
-    const monthKey = `${year}-${month}`
-    const planItems = plansByMonthKey.get(monthKey) || []
-    const monthCourseIds = planItems.map((p) => p.course.id)
-    const monthStart = new Date(year, month - 1, 1)
-    monthStart.setHours(0, 0, 0, 0)
+  const actualCountByMonthKeyCourseId = new Map<string, Map<string, number>>()
+  for (const row of distinctLessonsUpToPreviousDay) {
+    if (!row.courseId || !row.specificDate) continue
+    const mk = formatMonthKey(row.specificDate.getFullYear(), row.specificDate.getMonth() + 1)
+    if (!actualCountByMonthKeyCourseId.has(mk)) actualCountByMonthKeyCourseId.set(mk, new Map())
+    const m = actualCountByMonthKeyCourseId.get(mk)!
+    m.set(row.courseId, (m.get(row.courseId) || 0) + 1)
+  }
 
-    const rows = await prisma.dailyLesson.findMany({
-      where: {
-        termId,
-        courseId: { in: monthCourseIds },
-        specificDate: {
-          gte: monthStart,
-          lte: previousDay,
-        },
-        isCancelled: false,
-        isSpecialEvent: false,
-      },
-      select: {
-        courseId: true,
-        specificDate: true,
-      },
-      distinct: ['courseId', 'specificDate'],
-    })
-
-    const givenCountByCourseId = new Map<string, number>()
-    for (const row of rows) {
-      if (!row.courseId) continue
-      givenCountByCourseId.set(row.courseId, (givenCountByCourseId.get(row.courseId) || 0) + 1)
-    }
-
+  // monthRemaining: ilgili ayın kendi planından kalan
+  const monthRemainingByMonthKey = new Map<string, Map<string, number>>()
+  for (const mk of sortedPlanMonthKeys) {
     const remainingMap = new Map<string, number>()
-    for (const item of planItems) {
-      const given = givenCountByCourseId.get(item.course.id) || 0
-      remainingMap.set(item.course.id, Math.max(0, item.monthlyPlannedHours - given))
+    const plannedMap = plannedHoursByMonthKeyCourseId.get(mk) || new Map()
+    const actualMap = actualCountByMonthKeyCourseId.get(mk) || new Map()
+
+    for (const courseId of allCourseIds) {
+      const planned = plannedMap.get(courseId) || 0
+      const actual = actualMap.get(courseId) || 0
+      const remaining = Math.max(0, planned - actual)
+      if (remaining > 0) remainingMap.set(courseId, remaining)
     }
-    monthlyRemainingByMonthKey.set(monthKey, remainingMap)
+
+    monthRemainingByMonthKey.set(mk, remainingMap)
+  }
+
+  // Carry-over backlog: geçmiş aylardan devreden eksikler (kural değişmeden, sadece ay bazında esnetme)
+  const backlogByCourseId = new Map<string, number>()
+  for (const courseId of allCourseIds) backlogByCourseId.set(courseId, 0)
+
+  const weekStartMonthKey = formatMonthKey(weekStartDate.getFullYear(), weekStartDate.getMonth() + 1)
+  for (const mk of sortedPlanMonthKeys) {
+    if (mk >= weekStartMonthKey) break
+    const remainingMap = monthRemainingByMonthKey.get(mk)
+    if (!remainingMap) continue
+    for (const [courseId, remaining] of remainingMap.entries()) {
+      backlogByCourseId.set(courseId, (backlogByCourseId.get(courseId) || 0) + remaining)
+    }
   }
 
   let createdLessonsCount = 0
@@ -546,36 +559,54 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   }
 
   // Haftayı gün-gün, slot-slot doldur: Her slot için TEK ders seç, tüm sınıflara aynı dersi yaz.
+  let lastMonthKey: string | null = null
+
   for (const currentDate of schedulableDates) {
     const dayName = dayNames[currentDate.getDay()]
     const dateKey = currentDate.toISOString()
     const occupiedSlotIds = specialEventSlots.get(dateKey) || []
     const freeSlots = timeSlots.filter((s) => !occupiedSlotIds.includes(s.id))
 
-    const month = currentDate.getMonth() + 1
-    const year = currentDate.getFullYear()
-    const monthKey = `${year}-${month}`
-    const monthRemaining = monthlyRemainingByMonthKey.get(monthKey)
+    const monthKey = formatMonthKey(currentDate.getFullYear(), currentDate.getMonth() + 1)
 
-    if (!monthRemaining) {
-      // Bu günün ayı için plan yoksa boş bırak
-      continue
+    // Ay geçişinde: bir önceki ayın kalanını backlog'a ekle (ay bitti, artık devredebilir)
+    if (lastMonthKey && lastMonthKey !== monthKey) {
+      const prevRemaining = monthRemainingByMonthKey.get(lastMonthKey)
+      if (prevRemaining) {
+        for (const [courseId, remaining] of prevRemaining.entries()) {
+          backlogByCourseId.set(courseId, (backlogByCourseId.get(courseId) || 0) + remaining)
+        }
+        // Bu ay artık geçmiş oldu: kalanlar backlog'a taşındı, ay içi kalan map'ini sıfırla
+        prevRemaining.clear()
+      }
     }
+    lastMonthKey = monthKey
+
+    const monthRemaining = monthRemainingByMonthKey.get(monthKey) || new Map<string, number>()
 
     const usedCourseIdsToday = new Set<string>()
 
     for (const slot of freeSlots) {
-      const candidates = (plansByMonthKey.get(monthKey) || [])
-        .map((p) => p.course)
+      // Aday havuzu: bu ay planı olanlar + geçmiş aylardan backlog'u olanlar
+      const monthPlannedCourseIds = (plansByMonthKey.get(monthKey) || []).map((p) => p.course.id)
+      const candidateCourseIds = new Set<string>(monthPlannedCourseIds)
+      for (const [courseId, backlog] of backlogByCourseId.entries()) {
+        if (backlog > 0) candidateCourseIds.add(courseId)
+      }
+
+      const candidates = Array.from(candidateCourseIds)
+        .map((courseId) => courseMetaById.get(courseId))
+        .filter((c): c is CourseMeta => !!c)
         .filter((c) => {
           if (usedCourseIdsToday.has(c.id)) return false
           const monthlyRem = monthRemaining.get(c.id) || 0
+          const backlog = backlogByCourseId.get(c.id) || 0
           const totalRem = totalRemainingByCourseId.get(c.id) || 0
-          return monthlyRem > 0 && totalRem > 0
+          return (monthlyRem + backlog) > 0 && totalRem > 0
         })
         .sort((a, b) => {
-          const aMonthly = monthRemaining.get(a.id) || 0
-          const bMonthly = monthRemaining.get(b.id) || 0
+          const aMonthly = (monthRemaining.get(a.id) || 0) + (backlogByCourseId.get(a.id) || 0)
+          const bMonthly = (monthRemaining.get(b.id) || 0) + (backlogByCourseId.get(b.id) || 0)
           if (bMonthly !== aMonthly) return bMonthly - aMonthly
           const aTotal = totalRemainingByCourseId.get(a.id) || 0
           const bTotal = totalRemainingByCourseId.get(b.id) || 0
@@ -624,7 +655,15 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
       createdLessonsCount += classes.length
 
       usedCourseIdsToday.add(assignedCourse.id)
-      monthRemaining.set(assignedCourse.id, Math.max(0, (monthRemaining.get(assignedCourse.id) || 0) - 1))
+
+      // Önce backlog'u tüket, backlog yoksa ay içi kalanını azalt
+      const currentBacklog = backlogByCourseId.get(assignedCourse.id) || 0
+      if (currentBacklog > 0) {
+        backlogByCourseId.set(assignedCourse.id, Math.max(0, currentBacklog - 1))
+      } else {
+        monthRemaining.set(assignedCourse.id, Math.max(0, (monthRemaining.get(assignedCourse.id) || 0) - 1))
+      }
+
       totalRemainingByCourseId.set(
         assignedCourse.id,
         Math.max(0, (totalRemainingByCourseId.get(assignedCourse.id) || 0) - 1)
