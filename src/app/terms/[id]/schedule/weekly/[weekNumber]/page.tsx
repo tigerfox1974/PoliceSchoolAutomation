@@ -214,19 +214,6 @@ export default function WeeklySchedulePage() {
     if (!schedule || !schedule.weekDays) return new Map<string, any>()
     
     const colorMap = new Map<string, any>()
-    const allCourseIds = new Set<string>()
-    
-    // Tüm dersleri topla
-    schedule.weekDays.forEach((day) => {
-      day.slots.forEach((slot) => {
-        if (slot) {
-          const courseId = slot.course?.id || slot.specialEvent?.id || 'unknown'
-          if (courseId !== 'unknown') {
-            allCourseIds.add(courseId)
-          }
-        }
-      })
-    })
     
     // Renk paleti (birbirinden farklı, ayırt edilebilir renkler)
     const colors = [
@@ -313,12 +300,24 @@ export default function WeeklySchedulePage() {
       { bg: 'bg-neutral-700', border: 'border-neutral-900', text: 'text-white' },
       { bg: 'bg-zinc-700', border: 'border-zinc-900', text: 'text-white' },
     ]
-    
-    // Her derse sırayla unique renk ata
-    const courseIdsArray = Array.from(allCourseIds)
-    courseIdsArray.forEach((courseId, index) => {
-      const colorIndex = index % colors.length
-      colorMap.set(courseId, colors[colorIndex])
+
+    const hashToIndex = (value: string) => {
+      let hash = 0
+      for (let i = 0; i < value.length; i++) {
+        hash = (hash * 31 + value.charCodeAt(i)) | 0
+      }
+      return Math.abs(hash) % colors.length
+    }
+
+    // Deterministik: aynı courseId her hafta aynı renk
+    schedule.weekDays.forEach((day) => {
+      day.slots.forEach((slot) => {
+        if (!slot) return
+        const courseId = slot.course?.id || slot.specialEvent?.id
+        if (!courseId) return
+        if (colorMap.has(courseId)) return
+        colorMap.set(courseId, colors[hashToIndex(courseId)])
+      })
     })
     
     return colorMap

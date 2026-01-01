@@ -3,8 +3,7 @@ import { prisma } from '@/lib/prisma'
 import {
   checkCourseCounter,
   getCourseCounters,
-  calculateRemainingWeeks,
-  calculateWeeklyHours,
+  getMonthlyCounters,
   createAllSpecialEvents,
   getPhysicalEducationReservedSlots,
 } from './algorithms'
@@ -104,7 +103,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         const totalPlannedHours = termCoursePlan?.totalPlannedHours || 0
         // Her dersin kendi tarihi kullanılmalı (günden güne artış için)
-        const lessonDate = new Date(lesson.specificDate)
+        const lessonDate = lesson.specificDate ? new Date(lesson.specificDate) : new Date()
         lessonDate.setDate(lessonDate.getDate() + 1) // Ertesi günün başını kullan (o güne kadar olanları say)
         const counterResult = await checkCourseCounter(termId, lesson.courseId, totalPlannedHours, lessonDate)
 
@@ -129,7 +128,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       
       const daySlots = timeSlots.map((timeSlot) => {
         const lesson = lessonsWithCounters.find(
-          (l) => l.specificDate.toISOString().split('T')[0] === dateStr && l.timeSlot.slotNumber === timeSlot.slotNumber
+          (l) =>
+            !!l.specificDate &&
+            l.specificDate.toISOString().split('T')[0] === dateStr &&
+            l.timeSlot.slotNumber === timeSlot.slotNumber
         )
         
         if (lesson) {
@@ -377,19 +379,46 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
   }
 
-  const weekMonth = weekStartDate.getMonth() + 1
-  const weekYear = weekStartDate.getFullYear()
+  const workingDays = (term.settings.workingDays as string[]) || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
+  const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+
+  // Bu haftanın (iş günleri) kapsadığı ay/yıl kombinasyonlarını bul (ay sınırı haftaları için)
+  const monthYearPairs: Array<{ month: number; year: number }> = []
+  const monthYearKeySet = new Set<string>()
+  const schedulableDates: Date[] = []
+
+  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+    const currentDate = new Date(weekStartDate)
+    currentDate.setDate(weekStartDate.getDate() + dayOffset)
+
+    const dayName = dayNames[currentDate.getDay()]
+    if (!workingDays.includes(dayName)) continue
+
+    schedulableDates.push(currentDate)
+    const month = currentDate.getMonth() + 1
+    const year = currentDate.getFullYear()
+    const key = `${year}-${month}`
+    if (!monthYearKeySet.has(key)) {
+      monthYearKeySet.add(key)
+      monthYearPairs.push({ month, year })
+    }
+  }
+
+  if (schedulableDates.length === 0) {
+    return {
+      message: `${weekNumber}. hafta için iş günü bulunamadı`,
+      createdLessons: specialEvents.length,
+      weekNumber,
+      weekStartDate,
+      weekEndDate,
+    }
+  }
 
   const monthlyPlans = await prisma.monthlyCoursePlan.findMany({
     where: {
-      termCoursePlan: {
-        termId,
-      },
-      month: weekMonth,
-      year: weekYear,
-      plannedHours: {
-        gt: 0,
-      },
+      termCoursePlan: { termId },
+      plannedHours: { gt: 0 },
+      OR: monthYearPairs.map((p) => ({ month: p.month, year: p.year })),
     },
     include: {
       termCoursePlan: {
@@ -397,9 +426,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
           course: {
             include: {
               courseInstructors: {
-                include: {
-                  instructor: true,
-                },
+                include: { instructor: true },
               },
             },
           },
@@ -410,7 +437,9 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
 
   if (monthlyPlans.length === 0) {
     return {
-      message: `${weekNumber}. hafta için aylık plan bulunamadı`,
+      message: `${weekNumber}. hafta için aylık plan bulunamadı (${monthYearPairs
+        .map((p) => `${p.month}/${p.year}`)
+        .join(', ')})`,
       createdLessons: specialEvents.length,
       weekNumber,
       weekStartDate,
@@ -418,169 +447,194 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
   }
 
-  const courseIds = monthlyPlans.map((mp) => mp.termCoursePlan.courseId)
-  const counters = await getCourseCounters(termId, weekStartDate, courseIds)
-  const remainingWeeks = calculateRemainingWeeks(weekEndDate, term.endDate)
-
-  interface CourseWithRemaining {
+  type CourseMeta = {
     id: string
     name: string
     code: string
     requiresLab: boolean
-    remainingHours: number
-    occurrenceCount: number
+    instructorId: string | null
     totalPlannedHours: number
-    weeklyHours: number
-    instructorId?: string
   }
 
-  // Tüm sınıflar için ortak coursesWithRemaining listesi
-  const coursesWithRemaining: CourseWithRemaining[] = []
+  const plansByMonthKey = new Map<string, Array<{ course: CourseMeta; monthlyPlannedHours: number }>>()
+  const courseMetaById = new Map<string, CourseMeta>()
 
-  for (const monthlyPlan of monthlyPlans) {
-    const course = monthlyPlan.termCoursePlan.course
-    const totalPlannedHours = monthlyPlan.termCoursePlan.totalPlannedHours
-    const counter = counters.get(course.id)
-    const occurrenceCount = counter?.occurrenceCount || 0
-    const remainingHours = totalPlannedHours - occurrenceCount
-
-    if (remainingHours <= 0) {
-      continue
-    }
-
-    const weeklyHours = calculateWeeklyHours(remainingHours, remainingWeeks)
-    const firstInstructor = course.courseInstructors[0]?.instructor?.id
-
-    coursesWithRemaining.push({
+  for (const mp of monthlyPlans) {
+    const course = mp.termCoursePlan.course
+    const monthKey = `${mp.year}-${mp.month}`
+    const firstInstructor = course.courseInstructors[0]?.instructor?.id || null
+    const meta: CourseMeta = {
       id: course.id,
       name: course.name,
       code: course.code,
       requiresLab: course.requiresLab,
-      remainingHours,
-      occurrenceCount,
-      totalPlannedHours,
-      weeklyHours,
       instructorId: firstInstructor,
-    })
-  }
-
-  const workingDays = (term.settings.workingDays as string[]) || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
-  const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-  const createdLessons = []
-
-  for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-    const currentDate = new Date(weekStartDate)
-    currentDate.setDate(weekStartDate.getDate() + dayOffset)
-
-    const dayOfWeek = currentDate.getDay()
-    const dayName = dayNames[dayOfWeek]
-
-    if (!workingDays.includes(dayName)) {
-      continue
+      totalPlannedHours: mp.termCoursePlan.totalPlannedHours,
     }
 
+    courseMetaById.set(meta.id, meta)
+    if (!plansByMonthKey.has(monthKey)) plansByMonthKey.set(monthKey, [])
+    plansByMonthKey.get(monthKey)!.push({ course: meta, monthlyPlannedHours: mp.plannedHours })
+  }
+
+  // Toplam sayaç (dönem geneli) - bu haftanın başından ÖNCE
+  const allCourseIds = Array.from(courseMetaById.keys())
+  const totalCounters = await getCourseCounters(termId, weekStartDate, allCourseIds)
+  const totalRemainingByCourseId = new Map<string, number>()
+
+  for (const courseId of allCourseIds) {
+    const meta = courseMetaById.get(courseId)
+    if (!meta) continue
+    const occurrenceCount = totalCounters.get(courseId)?.occurrenceCount || 0
+    totalRemainingByCourseId.set(courseId, Math.max(0, meta.totalPlannedHours - occurrenceCount))
+  }
+
+  // Aylık sayaçlar (her ay için) - bu haftanın başından ÖNCE
+  const previousDay = new Date(weekStartDate)
+  previousDay.setDate(previousDay.getDate() - 1)
+  previousDay.setHours(23, 59, 59, 999)
+
+  const monthlyRemainingByMonthKey = new Map<string, Map<string, number>>()
+
+  for (const { month, year } of monthYearPairs) {
+    const monthKey = `${year}-${month}`
+    const planItems = plansByMonthKey.get(monthKey) || []
+    const monthCourseIds = planItems.map((p) => p.course.id)
+    const monthStart = new Date(year, month - 1, 1)
+    monthStart.setHours(0, 0, 0, 0)
+
+    const rows = await prisma.dailyLesson.findMany({
+      where: {
+        termId,
+        courseId: { in: monthCourseIds },
+        specificDate: {
+          gte: monthStart,
+          lte: previousDay,
+        },
+        isCancelled: false,
+        isSpecialEvent: false,
+      },
+      select: {
+        courseId: true,
+        specificDate: true,
+      },
+      distinct: ['courseId', 'specificDate'],
+    })
+
+    const givenCountByCourseId = new Map<string, number>()
+    for (const row of rows) {
+      if (!row.courseId) continue
+      givenCountByCourseId.set(row.courseId, (givenCountByCourseId.get(row.courseId) || 0) + 1)
+    }
+
+    const remainingMap = new Map<string, number>()
+    for (const item of planItems) {
+      const given = givenCountByCourseId.get(item.course.id) || 0
+      remainingMap.set(item.course.id, Math.max(0, item.monthlyPlannedHours - given))
+    }
+    monthlyRemainingByMonthKey.set(monthKey, remainingMap)
+  }
+
+  let createdLessonsCount = 0
+
+  const hashToInt = (value: string) => {
+    let hash = 0
+    for (let i = 0; i < value.length; i++) {
+      hash = (hash * 31 + value.charCodeAt(i)) | 0
+    }
+    return Math.abs(hash)
+  }
+
+  // Haftayı gün-gün, slot-slot doldur: Her slot için TEK ders seç, tüm sınıflara aynı dersi yaz.
+  for (const currentDate of schedulableDates) {
+    const dayName = dayNames[currentDate.getDay()]
     const dateKey = currentDate.toISOString()
     const occupiedSlotIds = specialEventSlots.get(dateKey) || []
     const freeSlots = timeSlots.filter((s) => !occupiedSlotIds.includes(s.id))
 
-    // ROTASYON: Her gün dersleri farklı sırada yaz (dayOffset kadar kaydır)
-    const sortedCourses = [...coursesWithRemaining]
-      .filter((c) => c.remainingHours > 0 && c.weeklyHours > 0)
-      .sort((a, b) => b.remainingHours - a.remainingHours)
-    
-    // Günün index'ine göre rotate et (Pazartesi: 0, Salı: 1, Çarşamba: 2, ...)
-    const rotationOffset = dayOffset % (sortedCourses.length || 1)
-    const rotatedCourses = sortedCourses.length > 0 ? [
-      ...sortedCourses.slice(rotationOffset),
-      ...sortedCourses.slice(0, rotationOffset)
-    ] : []
+    const month = currentDate.getMonth() + 1
+    const year = currentDate.getFullYear()
+    const monthKey = `${year}-${month}`
+    const monthRemaining = monthlyRemainingByMonthKey.get(monthKey)
 
-    for (const classItem of classes) {
-      const classCourseCopies = JSON.parse(JSON.stringify(rotatedCourses)) as CourseWithRemaining[]
+    if (!monthRemaining) {
+      // Bu günün ayı için plan yoksa boş bırak
+      continue
+    }
 
-      for (const slot of freeSlots) {
-        let assignedCourse: CourseWithRemaining | null = null
+    const usedCourseIdsToday = new Set<string>()
 
-        for (const course of classCourseCopies) {
-          const alreadyScheduledToday = await prisma.dailyLesson.findFirst({
-            where: {
-              termId,
-              classId: classItem.id,
-              courseId: course.id,
-              specificDate: currentDate,
-              isCancelled: false,
-            },
-          })
+    for (const slot of freeSlots) {
+      const candidates = (plansByMonthKey.get(monthKey) || [])
+        .map((p) => p.course)
+        .filter((c) => {
+          if (usedCourseIdsToday.has(c.id)) return false
+          const monthlyRem = monthRemaining.get(c.id) || 0
+          const totalRem = totalRemainingByCourseId.get(c.id) || 0
+          return monthlyRem > 0 && totalRem > 0
+        })
+        .sort((a, b) => {
+          const aMonthly = monthRemaining.get(a.id) || 0
+          const bMonthly = monthRemaining.get(b.id) || 0
+          if (bMonthly !== aMonthly) return bMonthly - aMonthly
+          const aTotal = totalRemainingByCourseId.get(a.id) || 0
+          const bTotal = totalRemainingByCourseId.get(b.id) || 0
+          if (bTotal !== aTotal) return bTotal - aTotal
+          const aTie = hashToInt(`${a.id}-${dateKey}-${slot.slotNumber}`)
+          const bTie = hashToInt(`${b.id}-${dateKey}-${slot.slotNumber}`)
+          return aTie - bTie
+        })
 
-          if (alreadyScheduledToday) {
-            continue
-          }
+      const assignedCourse = candidates[0]
+      if (!assignedCourse) {
+        continue
+      }
 
-          if (course.requiresLab) {
-            const labConflict = await prisma.dailyLesson.findFirst({
-              where: {
-                termId,
-                specificDate: currentDate,
-                timeSlotId: slot.id,
-                course: {
-                  requiresLab: true,
-                },
-                isCancelled: false,
-              },
-            })
-
-            if (labConflict) {
-              continue
-            }
-          }
-
-          assignedCourse = course
-          break
-        }
-
-        if (!assignedCourse) {
-          continue
-        }
-
-        const lesson = await prisma.dailyLesson.create({
-          data: {
+      // Lab çakışması kontrolü (tek lab varsayımı)
+      if (assignedCourse.requiresLab) {
+        const labConflict = await prisma.dailyLesson.findFirst({
+          where: {
             termId,
-            classId: classItem.id,
-            courseId: assignedCourse.id,
-            instructorId: assignedCourse.instructorId || null,
-            dayOfWeek: dayName as any,
-            timeSlotId: slot.id,
             specificDate: currentDate,
-            isSpecialEvent: false,
-            requiresInstructor: true,
+            timeSlotId: slot.id,
+            course: { requiresLab: true },
+            isCancelled: false,
           },
         })
 
-        createdLessons.push(lesson)
-
-        assignedCourse.remainingHours--
-        assignedCourse.occurrenceCount++
-
-        // O GÜN içinde bu dersin kaç kez atandığını say (TÜM HAFTAYI DEĞİL!)
-        const todayCount = createdLessons.filter((l) => 
-          l.courseId === assignedCourse!.id && 
-          l.specificDate.toDateString() === currentDate.toDateString()
-        ).length
-
-        // Eğer o GÜN içinde haftalık hedef kadar ders atandıysa, o dersi listeden çıkar
-        if (todayCount >= assignedCourse.weeklyHours) {
-          const index = classCourseCopies.indexOf(assignedCourse)
-          if (index > -1) {
-            classCourseCopies.splice(index, 1)
-          }
+        if (labConflict) {
+          continue
         }
       }
+
+      await prisma.dailyLesson.createMany({
+        data: classes.map((classItem) => ({
+          termId,
+          classId: classItem.id,
+          courseId: assignedCourse.id,
+          instructorId: assignedCourse.instructorId,
+          dayOfWeek: dayName as any,
+          timeSlotId: slot.id,
+          specificDate: currentDate,
+          isSpecialEvent: false,
+          requiresInstructor: true,
+        })),
+      })
+
+      createdLessonsCount += classes.length
+
+      usedCourseIdsToday.add(assignedCourse.id)
+      monthRemaining.set(assignedCourse.id, Math.max(0, (monthRemaining.get(assignedCourse.id) || 0) - 1))
+      totalRemainingByCourseId.set(
+        assignedCourse.id,
+        Math.max(0, (totalRemainingByCourseId.get(assignedCourse.id) || 0) - 1)
+      )
     }
   }
 
   return {
     message: `${weekNumber}. hafta programı oluşturuldu`,
-    createdLessons: specialEvents.length + createdLessons.length,
+    createdLessons: specialEvents.length + createdLessonsCount,
     weekNumber,
     weekStartDate,
     weekEndDate,
@@ -616,4 +670,40 @@ function calculateTotalWeeks(startDate: Date, endDate: Date) {
 
   const totalWeeks = Math.ceil((end.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
   return totalWeeks
+}
+
+// Bir ayda kaç hafta (iş haftası) olduğunu hesapla
+function getWeeksInMonth(year: number, month: number): number {
+  // Ayın ilk ve son gününü bul
+  const firstDay = new Date(year, month - 1, 1)
+  const lastDay = new Date(year, month, 0)
+  
+  // Ayın ilk pazartesisini bul
+  let firstMonday = new Date(firstDay)
+  while (firstMonday.getDay() !== 1) {
+    firstMonday.setDate(firstMonday.getDate() + 1)
+  }
+  
+  // Ayın son cumasını bul
+  let lastFriday = new Date(lastDay)
+  while (lastFriday.getDay() !== 5) {
+    lastFriday.setDate(lastFriday.getDate() - 1)
+  }
+  
+  // Kaç tam hafta var?
+  const weeks = Math.ceil((lastFriday.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1
+  return Math.max(1, weeks)
+}
+
+// Haftanın ay içinde kaçıncı hafta olduğunu bul
+function getWeekOfMonth(date: Date): number {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
+  let firstMonday = new Date(firstDay)
+  while (firstMonday.getDay() !== 1) {
+    firstMonday.setDate(firstMonday.getDate() + 1)
+  }
+  
+  const diff = date.getTime() - firstMonday.getTime()
+  const weekNumber = Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1
+  return Math.max(1, weekNumber)
 }

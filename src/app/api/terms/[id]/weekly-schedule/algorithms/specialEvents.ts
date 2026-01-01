@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { DayOfWeek } from '@prisma/client'
+import { DayOfWeek, SpecialEventType } from '@prisma/client'
 
 /**
  * Özel etkinlikleri haftalık programa ekle
@@ -27,7 +27,7 @@ interface DailyLessonCreate {
   timeSlotId: string
   specificDate: Date
   isSpecialEvent: boolean
-  specialEventType?: string
+  specialEventType?: SpecialEventType
   specialEventId?: string
   specialEventTitle?: string
   requiresInstructor: boolean

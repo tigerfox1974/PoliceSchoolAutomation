@@ -1,0 +1,155 @@
+# Aylık Kota Doğrulama Raporu
+
+- Dönem: 69. Polis Temel Eğitimi (PTE-69)
+- TermId: cmjpto8ae0000bncc1gqr5kgj
+- Dönem Tarih Aralığı: 2026-02-02 → 2026-06-01
+- Kural: (courseId + specificDate) DISTINCT = 1 saat
+
+## Aylık Toplamlar
+| Ay | Planlanan | Gerçekleşen | Fark |
+|---|---:|---:|---:|
+| 2026-02 | 123 | 90 | -33 |
+| 2026-03 | 125 | 125 | 0 |
+| 2026-04 | 111 | 111 | 0 |
+| 2026-05 | 109 | 109 | 0 |
+| 2026-06 | 1 | 1 | 0 |
+
+**Genel Toplam:** Planlanan 469, Gerçekleşen 436, Fark -33
+
+## Kapasite Analizi (Pinpoint)
+| Ay | İş Günü | Slot/Gün | Ham Slot | Özel Etkinlik Slot | PE Rezerv Slot | Maks Müfredat Slot | Planlanan | Gerçekleşen |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2026-02 | 20 | 7 | 140 | 44 | 6 | 90 | 123 | 90 |
+| 2026-03 | 22 | 7 | 154 | 12 | 8 | 134 | 125 | 125 |
+| 2026-04 | 22 | 7 | 154 | 14 | 10 | 130 | 111 | 111 |
+| 2026-05 | 21 | 7 | 147 | 13 | 8 | 126 | 109 | 109 |
+| 2026-06 | 1 | 7 | 7 | 0 | 0 | 7 | 1 | 1 |
+
+## Ders Bazında Detay (Ay-Ay)
+### 2026-02
+| Ders Kodu | Ders Adı | Planlanan | Gerçekleşen | Fark |
+|---|---|---:|---:|---:|
+| BEDENDILIV | BEDEN DİLİ VE KRİZ ANLARINDA İLETİŞİM VE DUYGU KONTROLÜ | 1 | 0 | -1 |
+| BEDENEGITI | BEDEN EĞİTİMİ | 4 | 3 | -1 |
+| BILGISAYAR | BİLGİSAYAR DESTEKLİ POLİS UYGULAMALARI | 3 | 2 | -1 |
+| BILGISAYAR-BHPPORTAL | BHP (Portal) | 1 | 0 | -1 |
+| BILGISAYAR-ESBA | ESBA | 1 | 0 | -1 |
+| BILGISAYAR-KBS | KBS | 1 | 0 | -1 |
+| BILGISAYAR-SAID | SAID | 1 | 0 | -1 |
+| CEZAHUKUKU | CEZA HUKUKU VE UYGULAMALARI | 10 | 9 | -1 |
+| CEZAMUHAKE | CEZA MUHAKEMELERİ USUL YASASI VE UYGULAMALARI | 10 | 9 | -1 |
+| DEVLETGUVE | DEVLET GÜVENLİĞİ VE İSTİHBARAT | 2 | 0 | -2 |
+| ELEKTRONIK | ELEKTRONİK BELGE YÖNETİM SİSTEMİ (EBYS) | 2 | 0 | -2 |
+| HUKUKAGIRI | HUKUKA GİRİŞ VE İNSAN HAKLARI | 3 | 2 | -1 |
+| KRIMINALIS | KRİMİNALİSTİK KONULARI | 2 | 0 | -2 |
+| MESLEKITEK | MESLEKİ TEKNİK YAZIŞMA USUL VE ESASLARI | 3 | 2 | -1 |
+| MESLEKITRA | MESLEKİ TRAFİK EĞİTİMİ ve GÜVENLİĞİ | 7 | 6 | -1 |
+| OLAYYERIGU | OLAY YERİ GÜVENLİĞİ | 2 | 0 | -2 |
+| POLISEYETK | POLİSE YETKİ, GÖREV VEREN YASA VE UYGULAMALAR | 12 | 11 | -1 |
+| POLISHALKL | POLİS - HALKLA İLİŞKİLER | 1 | 0 | -1 |
+| POLISLIGEG | POLİSLİĞE GİRİŞ | 6 | 5 | -1 |
+| POLISMUDAH | POLİS MÜDAHALE YÖNTEM VE TEKNİKLERİ | 5 | 4 | -1 |
+| POLISUYGUL | POLİS UYGULAMALARI | 11 | 10 | -1 |
+| POLISUYGUL-ADLI | Adli | 8 | 7 | -1 |
+| POLISUYGUL-TRAFIK | Trafik | 3 | 2 | -1 |
+| SILAHBILGI | SİLAH BİLGİSİ VE ATIŞ | 8 | 7 | -1 |
+| SOSYALPSIK | SOSYAL PSİKOLOJİ | 3 | 1 | -2 |
+| TEMELSEVIY | TEMEL SEVİYE BİLGİSAYAR KULLANIMI (WORD-EXCEL) | 4 | 3 | -1 |
+| TOPLUMSALO | TOPLUMSAL OLAYLAR VE ÖNLEYİCİ HİZMETLER UYGULAMALARI | 5 | 4 | -1 |
+| YANASIKDUZ | YANAŞIK DÜZEN | 4 | 3 | -1 |
+
+### 2026-03
+| Ders Kodu | Ders Adı | Planlanan | Gerçekleşen | Fark |
+|---|---|---:|---:|---:|
+| BEDENDILIV | BEDEN DİLİ VE KRİZ ANLARINDA İLETİŞİM VE DUYGU KONTROLÜ | 1 | 1 | 0 |
+| BEDENEGITI | BEDEN EĞİTİMİ | 4 | 4 | 0 |
+| BILGISAYAR | BİLGİSAYAR DESTEKLİ POLİS UYGULAMALARI | 3 | 3 | 0 |
+| BILGISAYAR-BHPPORTAL | BHP (Portal) | 1 | 1 | 0 |
+| BILGISAYAR-ESBA | ESBA | 1 | 1 | 0 |
+| BILGISAYAR-KBS | KBS | 1 | 1 | 0 |
+| BILGISAYAR-SAID | SAID | 1 | 1 | 0 |
+| CEZAHUKUKU | CEZA HUKUKU VE UYGULAMALARI | 10 | 10 | 0 |
+| CEZAMUHAKE | CEZA MUHAKEMELERİ USUL YASASI VE UYGULAMALARI | 10 | 10 | 0 |
+| DEVLETGUVE | DEVLET GÜVENLİĞİ VE İSTİHBARAT | 2 | 2 | 0 |
+| ELEKTRONIK | ELEKTRONİK BELGE YÖNETİM SİSTEMİ (EBYS) | 2 | 2 | 0 |
+| HUKUKAGIRI | HUKUKA GİRİŞ VE İNSAN HAKLARI | 3 | 3 | 0 |
+| KRIMINALIS | KRİMİNALİSTİK KONULARI | 2 | 2 | 0 |
+| MESLEKITEK | MESLEKİ TEKNİK YAZIŞMA USUL VE ESASLARI | 3 | 3 | 0 |
+| MESLEKITRA | MESLEKİ TRAFİK EĞİTİMİ ve GÜVENLİĞİ | 7 | 7 | 0 |
+| OLAYYERIGU | OLAY YERİ GÜVENLİĞİ | 2 | 2 | 0 |
+| POLISEYETK | POLİSE YETKİ, GÖREV VEREN YASA VE UYGULAMALAR | 12 | 12 | 0 |
+| POLISHALKL | POLİS - HALKLA İLİŞKİLER | 1 | 1 | 0 |
+| POLISLIGEG | POLİSLİĞE GİRİŞ | 6 | 6 | 0 |
+| POLISMUDAH | POLİS MÜDAHALE YÖNTEM VE TEKNİKLERİ | 5 | 5 | 0 |
+| POLISUYGUL | POLİS UYGULAMALARI | 11 | 11 | 0 |
+| POLISUYGUL-ADLI | Adli | 10 | 10 | 0 |
+| POLISUYGUL-TRAFIK | Trafik | 3 | 3 | 0 |
+| SILAHBILGI | SİLAH BİLGİSİ VE ATIŞ | 8 | 8 | 0 |
+| SOSYALPSIK | SOSYAL PSİKOLOJİ | 3 | 3 | 0 |
+| TEMELSEVIY | TEMEL SEVİYE BİLGİSAYAR KULLANIMI (WORD-EXCEL) | 4 | 4 | 0 |
+| TOPLUMSALO | TOPLUMSAL OLAYLAR VE ÖNLEYİCİ HİZMETLER UYGULAMALARI | 5 | 5 | 0 |
+| YANASIKDUZ | YANAŞIK DÜZEN | 4 | 4 | 0 |
+
+### 2026-04
+| Ders Kodu | Ders Adı | Planlanan | Gerçekleşen | Fark |
+|---|---|---:|---:|---:|
+| BEDENEGITI | BEDEN EĞİTİMİ | 4 | 4 | 0 |
+| BILGISAYAR | BİLGİSAYAR DESTEKLİ POLİS UYGULAMALARI | 3 | 3 | 0 |
+| BILGISAYAR-KBS | KBS | 1 | 1 | 0 |
+| BILGISAYAR-SAID | SAID | 1 | 1 | 0 |
+| CEZAHUKUKU | CEZA HUKUKU VE UYGULAMALARI | 10 | 10 | 0 |
+| CEZAMUHAKE | CEZA MUHAKEMELERİ USUL YASASI VE UYGULAMALARI | 10 | 10 | 0 |
+| DEVLETGUVE | DEVLET GÜVENLİĞİ VE İSTİHBARAT | 2 | 2 | 0 |
+| ELEKTRONIK | ELEKTRONİK BELGE YÖNETİM SİSTEMİ (EBYS) | 2 | 2 | 0 |
+| HUKUKAGIRI | HUKUKA GİRİŞ VE İNSAN HAKLARI | 3 | 3 | 0 |
+| KRIMINALIS | KRİMİNALİSTİK KONULARI | 1 | 1 | 0 |
+| MESLEKITEK | MESLEKİ TEKNİK YAZIŞMA USUL VE ESASLARI | 3 | 3 | 0 |
+| MESLEKITRA | MESLEKİ TRAFİK EĞİTİMİ ve GÜVENLİĞİ | 7 | 7 | 0 |
+| OLAYYERIGU | OLAY YERİ GÜVENLİĞİ | 2 | 2 | 0 |
+| POLISEYETK | POLİSE YETKİ, GÖREV VEREN YASA VE UYGULAMALAR | 11 | 11 | 0 |
+| POLISLIGEG | POLİSLİĞE GİRİŞ | 6 | 6 | 0 |
+| POLISMUDAH | POLİS MÜDAHALE YÖNTEM VE TEKNİKLERİ | 5 | 5 | 0 |
+| POLISUYGUL | POLİS UYGULAMALARI | 10 | 10 | 0 |
+| POLISUYGUL-ADLI | Adli | 6 | 6 | 0 |
+| POLISUYGUL-TRAFIK | Trafik | 3 | 3 | 0 |
+| SILAHBILGI | SİLAH BİLGİSİ VE ATIŞ | 7 | 7 | 0 |
+| SOSYALPSIK | SOSYAL PSİKOLOJİ | 2 | 2 | 0 |
+| TEMELSEVIY | TEMEL SEVİYE BİLGİSAYAR KULLANIMI (WORD-EXCEL) | 3 | 3 | 0 |
+| TOPLUMSALO | TOPLUMSAL OLAYLAR VE ÖNLEYİCİ HİZMETLER UYGULAMALARI | 5 | 5 | 0 |
+| YANASIKDUZ | YANAŞIK DÜZEN | 4 | 4 | 0 |
+
+### 2026-05
+| Ders Kodu | Ders Adı | Planlanan | Gerçekleşen | Fark |
+|---|---|---:|---:|---:|
+| BEDENEGITI | BEDEN EĞİTİMİ | 4 | 4 | 0 |
+| BILGISAYAR | BİLGİSAYAR DESTEKLİ POLİS UYGULAMALARI | 3 | 3 | 0 |
+| BILGISAYAR-SAID | SAID | 1 | 1 | 0 |
+| CEZAHUKUKU | CEZA HUKUKU VE UYGULAMALARI | 10 | 10 | 0 |
+| CEZAMUHAKE | CEZA MUHAKEMELERİ USUL YASASI VE UYGULAMALARI | 10 | 10 | 0 |
+| DEVLETGUVE | DEVLET GÜVENLİĞİ VE İSTİHBARAT | 2 | 2 | 0 |
+| ELEKTRONIK | ELEKTRONİK BELGE YÖNETİM SİSTEMİ (EBYS) | 2 | 2 | 0 |
+| HUKUKAGIRI | HUKUKA GİRİŞ VE İNSAN HAKLARI | 3 | 3 | 0 |
+| KRIMINALIS | KRİMİNALİSTİK KONULARI | 1 | 1 | 0 |
+| MESLEKITEK | MESLEKİ TEKNİK YAZIŞMA USUL VE ESASLARI | 3 | 3 | 0 |
+| MESLEKITRA | MESLEKİ TRAFİK EĞİTİMİ ve GÜVENLİĞİ | 7 | 7 | 0 |
+| OLAYYERIGU | OLAY YERİ GÜVENLİĞİ | 2 | 2 | 0 |
+| POLISEYETK | POLİSE YETKİ, GÖREV VEREN YASA VE UYGULAMALAR | 11 | 11 | 0 |
+| POLISLIGEG | POLİSLİĞE GİRİŞ | 6 | 6 | 0 |
+| POLISMUDAH | POLİS MÜDAHALE YÖNTEM VE TEKNİKLERİ | 5 | 5 | 0 |
+| POLISUYGUL | POLİS UYGULAMALARI | 10 | 10 | 0 |
+| POLISUYGUL-ADLI | Adli | 6 | 6 | 0 |
+| POLISUYGUL-TRAFIK | Trafik | 3 | 3 | 0 |
+| SILAHBILGI | SİLAH BİLGİSİ VE ATIŞ | 7 | 7 | 0 |
+| SOSYALPSIK | SOSYAL PSİKOLOJİ | 2 | 2 | 0 |
+| TEMELSEVIY | TEMEL SEVİYE BİLGİSAYAR KULLANIMI (WORD-EXCEL) | 3 | 3 | 0 |
+| TOPLUMSALO | TOPLUMSAL OLAYLAR VE ÖNLEYİCİ HİZMETLER UYGULAMALARI | 5 | 5 | 0 |
+| YANASIKDUZ | YANAŞIK DÜZEN | 3 | 3 | 0 |
+
+### 2026-06
+| Ders Kodu | Ders Adı | Planlanan | Gerçekleşen | Fark |
+|---|---|---:|---:|---:|
+| BILGISAYAR-ESBA | ESBA | 1 | 1 | 0 |
+
+## Özet
+- Plan satırı (ay+ders): 104
+- Uyuşmayan satır sayısı (fark ≠ 0): 28

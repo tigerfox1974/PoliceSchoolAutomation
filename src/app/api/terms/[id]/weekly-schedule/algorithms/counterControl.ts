@@ -43,6 +43,51 @@ export async function checkCourseCounter(
 }
 
 /**
+ * AYLIK BAZLI sayaç - O ay içinde kaç ders verildiğini sayar
+ */
+export async function getMonthlyCounters(
+  termId: string,
+  weekStartDate: Date,
+  courseIds: string[],
+  month: number,
+  year: number
+): Promise<Map<string, number>> {
+  const counters = new Map<string, number>()
+
+  // Ayın başı ve bu haftanın başından önceki gün
+  const monthStart = new Date(year, month - 1, 1)
+  monthStart.setHours(0, 0, 0, 0)
+  
+  const previousDay = new Date(weekStartDate)
+  previousDay.setDate(previousDay.getDate() - 1)
+  previousDay.setHours(23, 59, 59, 999)
+
+  // Her ders için O AY içinde kaç kez verildiğini say
+  for (const courseId of courseIds) {
+    const lessons = await prisma.dailyLesson.findMany({
+      where: {
+        termId,
+        courseId,
+        specificDate: { 
+          gte: monthStart,
+          lte: previousDay 
+        },
+        isCancelled: false,
+        isSpecialEvent: false,
+      },
+      select: {
+        specificDate: true,
+      },
+      distinct: ['specificDate'],
+    })
+    
+    counters.set(courseId, lessons.length)
+  }
+
+  return counters
+}
+
+/**
  * Tüm derslerin sayaç bilgilerini toplu getir (performans için)
  */
 export async function getCourseCounters(
