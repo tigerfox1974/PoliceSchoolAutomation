@@ -113,7 +113,7 @@ export default function TermSettingsPage() {
     }
 
     slots.push({
-      slotNumber: 6,
+      slotNumber: 'lunch' as any,
       startTime: settings.lunchBreakStart,
       endTime: `${String(lunchEndHour).padStart(2, '0')}:${String(lunchEndMin).padStart(2, '0')}`,
       isBreak: true,
@@ -136,7 +136,7 @@ export default function TermSettingsPage() {
       const end = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`
 
       slots.push({
-        slotNumber: i,
+        slotNumber: i + 5,
         startTime: start,
         endTime: end,
         isBreak: false,
@@ -192,24 +192,27 @@ export default function TermSettingsPage() {
     setSaving(true)
 
     try {
-      const method = settings?.id ? 'PUT' : 'POST'
-      const res = await fetch(`/api/terms/${termId}/settings`, {
-        method,
+      const res = await fetch('/api/term-settings', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          ...settings,
+          termId,
+        }),
       })
 
-      const data = await res.json()
+      const contentType = res.headers.get('content-type') || ''
+      const data = contentType.includes('application/json') ? await res.json() : null
 
       if (res.ok) {
         showToast('✅ Ayarlar başarıyla kaydedildi!', 'success')
-        setSettings(data.settings || data)
+        setSettings(data?.settings || data || settings)
         // 1.5 saniye sonra dönem detay sayfasına yönlendir
         setTimeout(() => {
           router.push(`/terms/${termId}`)
         }, 1500)
       } else {
-        showToast(`❌ Hata: ${data.error || 'Ayarlar kaydedilemedi'}`, 'error')
+        showToast(`❌ Hata: ${data?.error || 'Ayarlar kaydedilemedi'}`, 'error')
       }
     } catch (error) {
       console.error('Settings save error:', error)

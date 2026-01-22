@@ -68,6 +68,40 @@ export async function POST(request: Request) {
       }
     }
 
+    // Aynı kodlu bir dönem var mı kontrol et (soft delete dahil)
+    const existingByCode = await prisma.term.findUnique({
+      where: { termCode },
+    })
+
+    if (existingByCode) {
+      // Soft delete edilmişse geri yükle
+      if (existingByCode.isDeleted) {
+        const restoredTerm = await prisma.term.update({
+          where: { id: existingByCode.id },
+          data: {
+            termNumber: parseInt(termNumber),
+            name,
+            termCode,
+            termType,
+            duration,
+            startDate: new Date(startDate),
+            endDate: calculatedEndDate,
+            status: 'ACTIVE',
+            description: data.description,
+            isDeleted: false,
+            deletedAt: null,
+          },
+        })
+
+        return NextResponse.json({ success: true, term: restoredTerm, restored: true })
+      }
+
+      return NextResponse.json(
+        { error: 'Bu dönem zaten mevcut' },
+        { status: 409 }
+      )
+    }
+
     const term = await prisma.term.create({
       data: {
         termNumber: parseInt(termNumber),

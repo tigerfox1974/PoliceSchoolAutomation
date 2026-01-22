@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+type RouteParams = {
+  params: { id: string }
+}
+
 // GET /api/terms/{termId}/settings - Dönem ayarlarını getir
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: RouteParams
 ) {
   try {
-    const termId = params.id
+    const termId = context.params.id
 
     // Dönem var mı kontrol et
     const term = await prisma.term.findUnique({
@@ -60,10 +64,10 @@ export async function GET(
 // POST /api/terms/{termId}/settings - Dönem ayarlarını oluştur
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: RouteParams
 ) {
   try {
-    const termId = params.id
+    const termId = context.params.id
     const body = await request.json()
 
     // Dönem var mı kontrol et
@@ -126,10 +130,10 @@ export async function POST(
 // PUT /api/terms/{termId}/settings - Dönem ayarlarını güncelle
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: RouteParams
 ) {
   try {
-    const termId = params.id
+    const termId = context.params.id
     const body = await request.json()
 
     // Dönem var mı kontrol et
