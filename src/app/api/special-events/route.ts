@@ -39,6 +39,8 @@ export async function POST(request: Request) {
       duration,
       dayOfWeek,
       slotIndex,
+      startDate,
+      endDate,
       requiresInstructor,
       allClassesTogether,
       countsTowardCurriculum,
@@ -61,6 +63,8 @@ export async function POST(request: Request) {
         duration: duration || 1,
         dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
         slotIndex: slotIndex ? parseInt(slotIndex) : null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : (startDate ? new Date(startDate) : null),
         requiresInstructor: requiresInstructor ?? false,
         allClassesTogether: allClassesTogether ?? false,
         countsTowardCurriculum: countsTowardCurriculum ?? false,
@@ -74,6 +78,98 @@ export async function POST(request: Request) {
     console.error('Special event create error:', error)
     return NextResponse.json(
       { error: 'Özel etkinlik oluşturulamadı' },
+      { status: 500 }
+    )
+  }
+}
+
+// Özel etkinlik güncelle
+export async function PUT(request: Request) {
+  try {
+    const data = await request.json()
+
+    const {
+      id,
+      eventType,
+      eventTitle,
+      description,
+      duration,
+      dayOfWeek,
+      slotIndex,
+      startDate,
+      endDate,
+      requiresInstructor,
+      allClassesTogether,
+      countsTowardCurriculum,
+      managedBy,
+      notes,
+    } = data
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Etkinlik ID zorunludur' },
+        { status: 400 }
+      )
+    }
+
+    if (!eventType || !eventTitle) {
+      return NextResponse.json(
+        { error: 'Etkinlik tipi ve başlık zorunludur' },
+        { status: 400 }
+      )
+    }
+
+    const specialEvent = await prisma.specialEvent.update({
+      where: { id },
+      data: {
+        eventType,
+        eventTitle,
+        description,
+        duration: duration || 1,
+        dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
+        slotIndex: slotIndex ? parseInt(slotIndex) : null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : (startDate ? new Date(startDate) : null),
+        requiresInstructor: requiresInstructor ?? false,
+        allClassesTogether: allClassesTogether ?? false,
+        countsTowardCurriculum: countsTowardCurriculum ?? false,
+        managedBy,
+        notes,
+      },
+    })
+
+    return NextResponse.json({ success: true, specialEvent })
+  } catch (error) {
+    console.error('Special event update error:', error)
+    return NextResponse.json(
+      { error: 'Özel etkinlik güncellenemedi' },
+      { status: 500 }
+    )
+  }
+}
+
+// Özel etkinlik sil
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Etkinlik ID zorunludur' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.specialEvent.delete({
+      where: { id },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Special event delete error:', error)
+    return NextResponse.json(
+      { error: 'Özel etkinlik silinemedi' },
       { status: 500 }
     )
   }

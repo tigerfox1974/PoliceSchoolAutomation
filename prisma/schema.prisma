@@ -764,6 +764,8 @@ model SpecialEvent {
   // Zamansal bilgiler
   dayOfWeek Int? // 1=Pazartesi, 5=Cuma (NULL=tüm günler için)
   slotIndex Int? // Hangi ders saati (1-7, NULL=değişken)
+  startDate DateTime? @db.Date // Etkinlik başlangıç tarihi (opsiyonel)
+  endDate   DateTime? @db.Date // Etkinlik bitiş tarihi (opsiyonel)
 
   // Özellikler
   requiresInstructor     Boolean @default(false) // Eğitmen ataması gerekli mi?

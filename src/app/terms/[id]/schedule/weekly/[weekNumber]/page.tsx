@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
-import { ToastContainer } from '@/shared/components'
+import { ConfirmDialog, ToastContainer } from '@/shared/components'
 
 interface WeeklySchedule {
   termId: string
@@ -76,6 +76,19 @@ export default function WeeklySchedulePage() {
     message: string
     type: 'success' | 'error' | 'info' | 'warning'
   }>>([])
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    title: string
+    message: string
+    type: 'danger' | 'warning' | 'info'
+    onConfirm: () => void
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'warning',
+    onConfirm: () => {},
+  })
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
     const id = Date.now().toString()
@@ -84,6 +97,38 @@ export default function WeeklySchedulePage() {
 
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
+
+  const formatDateDisplay = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`
+  }
+
+  const updateTermEndDate = async (newEndDate: string) => {
+    try {
+      const response = await fetch('/api/term-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          id: termId,
+          endDate: newEndDate,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        showToast(errorData?.error || 'Dönem bitiş tarihi güncellenemedi', 'error')
+        return false
+      }
+
+      await fetchTerm()
+      return true
+    } catch (error) {
+      console.error('Update term end date error:', error)
+      showToast('Dönem bitiş tarihi güncellenemedi', 'error')
+      return false
+    }
   }
 
   // Term bilgisini sadece termId değiştiğinde yükle (maxWeeks hesaplaması için)
@@ -142,27 +187,58 @@ export default function WeeklySchedulePage() {
     }
   }
 
-  const handleGenerate = async (generateAll: boolean = false) => {
+  const handleGenerate = async (generateAll: boolean = false, options?: { skipExtensionCheck?: boolean }) => {
     if (!termId) return
     
     setGenerating(true)
     try {
-      const response = await fetch(`/api/terms/${termId}/weekly-schedule`, {
+      const response = await fetch('/api/weekly-schedule-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
+          termId,
           weekNumber: generateAll ? undefined : weekNumber,
-          generateAll: generateAll,
+          generateAll,
+          skipExtensionCheck: options?.skipExtensionCheck,
         }),
       })
 
+      const contentType = response.headers.get('content-type') || ''
+      const data = contentType.includes('application/json') ? await response.json() : null
+
       if (response.ok) {
-        const data = await response.json()
         console.log('Generate response:', JSON.stringify(data, null, 2))
         
         if (generateAll) {
-          const totalLessons = data.totalCreatedLessons || 0
-          const totalWeeks = data.totalWeeks || 0
+          if (data?.requiresExtension) {
+            const suggestedEndDate = data?.suggestedEndDate
+            const totalPlannedHours = data?.totalPlannedHours || 0
+            const totalAvailableSlots = data?.totalAvailableSlots || 0
+            const additionalSlotsNeeded = data?.additionalSlotsNeeded || Math.max(0, totalPlannedHours - totalAvailableSlots)
+            const formattedEndDate = suggestedEndDate ? formatDateDisplay(suggestedEndDate) : ''
+
+            setConfirmDialog({
+              isOpen: true,
+              title: 'Dönem Süresi Yetersiz',
+              type: 'warning',
+              message:
+                `Planlanan toplam ${totalPlannedHours} saat için mevcut süre yetersiz.\n` +
+                `Mevcut süreyle toplam ${totalAvailableSlots} ders slotu var, ${additionalSlotsNeeded} slot eksik.\n` +
+                `Önerilen yeni bitiş tarihi: ${formattedEndDate}\n` +
+                'Onaylarsanız dönem bitiş tarihi güncellenecek ve program yeniden oluşturulacaktır.',
+              onConfirm: async () => {
+                if (!suggestedEndDate) return
+                const updated = await updateTermEndDate(suggestedEndDate)
+                if (updated) {
+                  await handleGenerate(true, { skipExtensionCheck: true })
+                }
+              },
+            })
+            return
+          }
+
+          const totalLessons = data?.totalCreatedLessons || 0
+          const totalWeeks = data?.totalWeeks || 0
           showToast(`Tüm haftalar için program oluşturuldu (${totalWeeks} hafta, ${totalLessons} ders)`, 'success')
           // API'den gelen totalWeeks değerini kaydet (navigasyon için)
           if (totalWeeks > 0) {
@@ -173,11 +249,11 @@ export default function WeeklySchedulePage() {
           // Program oluşturulduktan sonra mevcut haftayı yeniden yükle
           await fetchSchedule()
         } else {
-          const lessonCount = data.createdLessons || 0
+          const lessonCount = data?.createdLessons || 0
           if (lessonCount > 0) {
-            showToast(`${data.message || 'Haftalık program oluşturuldu'} (${lessonCount} ders)`, 'success')
+            showToast(`${data?.message || 'Haftalık program oluşturuldu'} (${lessonCount} ders)`, 'success')
           } else {
-            const warningMsg = data.warning || 'Haftalık program oluşturuldu ancak hiç ders oluşturulamadı. Terminal loglarını kontrol edin.'
+            const warningMsg = data?.warning || 'Haftalık program oluşturuldu ancak hiç ders oluşturulamadı. Terminal loglarını kontrol edin.'
             showToast(warningMsg, 'warning')
             console.warn('No lessons created. Response:', data)
           }
@@ -189,13 +265,12 @@ export default function WeeklySchedulePage() {
           // maxWeeks zaten termId'den hesaplanıyor, tekrar fetchTerm() çağırmaya gerek yok
         }, 1000)
       } else {
-        const error = await response.json()
-        console.error('Generate schedule error:', error)
-        let errorMessage = error.error || 'Haftalık program oluşturulamadı'
-        if (error.debug) {
-          console.log('Debug info:', error.debug)
-          if (error.debug.allMonthlyPlans && error.debug.allMonthlyPlans.length > 0) {
-            errorMessage += ` (Mevcut aylık planlar: ${error.debug.allMonthlyPlans.join(', ')})`
+        console.error('Generate schedule error:', data)
+        let errorMessage = data?.error || 'Haftalık program oluşturulamadı'
+        if (data?.debug) {
+          console.log('Debug info:', data.debug)
+          if (data.debug.allMonthlyPlans && data.debug.allMonthlyPlans.length > 0) {
+            errorMessage += ` (Mevcut aylık planlar: ${data.debug.allMonthlyPlans.join(', ')})`
           }
         }
         showToast(errorMessage, 'error')
@@ -344,6 +419,43 @@ export default function WeeklySchedulePage() {
     }
   }
 
+  const parseDateFromYmd = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map((v) => parseInt(v, 10))
+    if (!y || !m || !d) return new Date(dateStr)
+    return new Date(y, m - 1, d)
+  }
+
+  const orderedWeekDays = useMemo(() => {
+    if (!schedule?.weekDays) return []
+    const isWeekend = (d: { dayOfWeek: string }) => d.dayOfWeek === 'SATURDAY' || d.dayOfWeek === 'SUNDAY'
+
+    if (weekNumber === 1) {
+      const byDate = [...schedule.weekDays].sort(
+        (a, b) => parseDateFromYmd(a.date).getTime() - parseDateFromYmd(b.date).getTime()
+      )
+      const firstDay = byDate[0]
+      const firstIsWeekend = !!firstDay && isWeekend(firstDay)
+      const weekdays = byDate.filter((d) => !isWeekend(d))
+      const weekends = byDate.filter((d) => isWeekend(d))
+      return firstIsWeekend ? byDate : [...weekdays, ...weekends]
+    }
+
+    const orderMap: Record<string, number> = {
+      MONDAY: 0,
+      TUESDAY: 1,
+      WEDNESDAY: 2,
+      THURSDAY: 3,
+      FRIDAY: 4,
+      SATURDAY: 5,
+      SUNDAY: 6,
+    }
+    return [...schedule.weekDays].sort((a, b) => {
+      const aOrder = orderMap[a.dayOfWeek] ?? 99
+      const bOrder = orderMap[b.dayOfWeek] ?? 99
+      return aOrder - bOrder
+    })
+  }, [schedule?.weekDays, weekNumber])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -360,8 +472,8 @@ export default function WeeklySchedulePage() {
     )
   }
 
-  const weekStartDate = schedule?.weekStartDate ? new Date(schedule.weekStartDate) : null
-  const weekEndDate = schedule?.weekEndDate ? new Date(schedule.weekEndDate) : null
+  const weekStartDate = schedule?.weekStartDate ? parseDateFromYmd(schedule.weekStartDate) : null
+  const weekEndDate = schedule?.weekEndDate ? parseDateFromYmd(schedule.weekEndDate) : null
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -489,8 +601,8 @@ export default function WeeklySchedulePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {schedule.weekDays.map((day, dayIndex) => {
-                  const date = new Date(day.date)
+                {orderedWeekDays.map((day, dayIndex) => {
+                  const date = parseDateFromYmd(day.date)
                   const isWeekend = day.dayOfWeek === 'SATURDAY' || day.dayOfWeek === 'SUNDAY'
                   
                   return (
@@ -511,17 +623,29 @@ export default function WeeklySchedulePage() {
                         day.slots.map((lesson, slotIndex) => (
                           <td
                             key={slotIndex}
-                            className="px-2 py-2 border-r border-gray-200 dark:border-gray-700 align-top min-h-[80px]"
+                            className="px-2 py-2 border-r border-gray-200 dark:border-gray-700 align-middle"
                           >
                             {lesson ? (
                               (() => {
                                 // SpecialEvent için renk (eventType'a göre) veya course için renk
-                                const colorKey = lesson.specialEvent?.id || lesson.course?.id || 'unknown'
-                                const color = getCourseColor(colorKey)
                                 const displayName = lesson.specialEvent?.eventTitle || lesson.course?.name || 'Özel Etkinlik'
+                                const isSpecialEvent = !!lesson.specialEvent
+                                const colorKey = lesson.course?.id || 'unknown'
+                                const color = getCourseColor(colorKey)
                                 return (
-                                  <div className={`text-xs p-2 rounded ${color.bg} dark:bg-opacity-20 border ${color.border} dark:border-opacity-50`}>
-                                    <div className={`font-semibold ${color.text} dark:text-gray-100`}>
+                                  <div
+                                    className={`text-xs p-2 rounded border text-center ${isSpecialEvent ? '' : `${color.bg} dark:bg-opacity-20 ${color.border} dark:border-opacity-50`}`}
+                                    style={
+                                      isSpecialEvent
+                                        ? {
+                                            backgroundColor: '#be123c',
+                                            borderColor: '#be123c',
+                                            color: '#ffffff',
+                                          }
+                                        : undefined
+                                    }
+                                  >
+                                    <div className={`font-semibold text-center ${isSpecialEvent ? '' : `${color.text} dark:text-gray-100`}`}>
                                       {displayName}
                                       {lesson.course?.totalPlannedHours && lesson.course?.occurrenceCount !== undefined && (
                                         <span className="ml-1 text-xs opacity-75">
@@ -546,6 +670,16 @@ export default function WeeklySchedulePage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type}
+        confirmText="Onayla ve Güncelle"
+        cancelText="İptal"
+      />
     </div>
   )
 }

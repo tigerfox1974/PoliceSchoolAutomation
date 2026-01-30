@@ -56,11 +56,22 @@ export function isExamWeek(
 ): boolean {
   if (!examWeeks || examWeeks.length === 0) return false
 
-  const dateTime = date.getTime()
+  const normalize = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const parseDateOnly = (value: string) => {
+    if (value.includes('T')) {
+      const x = new Date(value)
+      return new Date(x.getFullYear(), x.getMonth(), x.getDate())
+    }
+    const [y, m, d] = value.split('-').map((v) => parseInt(v, 10))
+    if (!y || !m || !d) return new Date(value)
+    return new Date(y, m - 1, d)
+  }
+
+  const dateTime = normalize(date)
 
   return examWeeks.some((examWeek) => {
-    const startTime = new Date(examWeek.startDate).getTime()
-    const endTime = new Date(examWeek.endDate).getTime()
+    const startTime = normalize(parseDateOnly(examWeek.startDate))
+    const endTime = normalize(parseDateOnly(examWeek.endDate))
     return dateTime >= startTime && dateTime <= endTime
   })
 }

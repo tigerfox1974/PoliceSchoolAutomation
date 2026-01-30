@@ -124,18 +124,20 @@ export default function TermsPage() {
       type: newStatus === 'ARCHIVED' ? 'warning' : 'info',
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/terms/${termId}`, {
-            method: 'PATCH',
+          const res = await fetch('/api/term-actions', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: newStatus }),
+            body: JSON.stringify({ action: 'status', id: termId, status: newStatus }),
           })
+
+          const contentType = res.headers.get('content-type') || ''
+          const data = contentType.includes('application/json') ? await res.json() : null
 
           if (res.ok) {
             fetchTerms()
             showToast(`Dönem ${statusLabels[newStatus].toLowerCase()} olarak işaretlendi`, 'success')
           } else {
-            const error = await res.json()
-            showToast(error.error || 'İşlem başarısız', 'error')
+            showToast(data?.error || 'İşlem başarısız', 'error')
           }
         } catch (error) {
           console.error('Status change error:', error)
@@ -184,16 +186,20 @@ export default function TermsPage() {
 
   const performDelete = async (termId: string, termName: string) => {
     try {
-      const res = await fetch(`/api/terms/${termId}`, {
-        method: 'DELETE',
+      const res = await fetch('/api/term-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: termId }),
       })
+
+      const contentType = res.headers.get('content-type') || ''
+      const data = contentType.includes('application/json') ? await res.json() : null
 
       if (res.ok) {
         fetchTerms()
         showToast('Dönem başarıyla silindi', 'success')
       } else {
-        const error = await res.json()
-        showToast(error.error || 'Dönem silinemedi', 'error')
+        showToast(data?.error || 'Dönem silinemedi', 'error')
       }
     } catch (error) {
       console.error('Dönem silme hatası:', error)

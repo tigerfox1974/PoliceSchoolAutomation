@@ -26,16 +26,19 @@ export function useTerms() {
 
   const deleteTerm = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/terms/${id}`, {
-        method: 'DELETE',
+      const res = await fetch('/api/term-actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id }),
       })
 
       if (res.ok) {
         await fetchTerms()
         return { success: true }
       } else {
-        const error = await res.json()
-        return { success: false, error: error.error || 'Dönem silinemedi' }
+        const contentType = res.headers.get('content-type') || ''
+        const error = contentType.includes('application/json') ? await res.json() : null
+        return { success: false, error: error?.error || 'Dönem silinemedi' }
       }
     } catch (error) {
       console.error('Silme hatası:', error)
@@ -48,18 +51,19 @@ export function useTerms() {
     status: 'ACTIVE' | 'PAUSED' | 'ARCHIVED'
   ) => {
     try {
-      const res = await fetch(`/api/terms/${id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/term-actions', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ action: 'status', id, status }),
       })
 
       if (res.ok) {
         await fetchTerms()
         return { success: true }
       } else {
-        const error = await res.json()
-        return { success: false, error: error.error || 'Durum güncellenemedi' }
+        const contentType = res.headers.get('content-type') || ''
+        const error = contentType.includes('application/json') ? await res.json() : null
+        return { success: false, error: error?.error || 'Durum güncellenemedi' }
       }
     } catch (error) {
       console.error('Durum güncelleme hatası:', error)

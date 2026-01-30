@@ -5,7 +5,7 @@ import {
   getCourseCounters,
   getMonthlyCounters,
   createAllSpecialEvents,
-  getPhysicalEducationReservedSlots,
+  isExamWeek,
 } from './algorithms'
 
 interface WeekGenerateResult {
@@ -43,15 +43,134 @@ async function getOrCreateDefaultTimeSlots() {
   })
 }
 
+const DEFAULT_WORKING_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
+const DAY_OF_WEEK_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const
+
+const formatDateKey = (d: Date) => d.toISOString().split('T')[0]
+const formatLocalDate = (d: Date) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+const normalizeDate = (d: Date) => {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+async function buildBlockedSlotsForWeek(params: {
+  termId: string
+  weekNumber: number
+  weekStartDate: Date
+  weekEndDate: Date
+  classes: Array<{ id: string; code: string }>
+  timeSlots: Array<{ id: string; slotNumber: number; startTime: string; endTime: string }>
+  examWeeks?: Array<{ startDate: string; endDate: string; type: string }> | null
+}) {
+  const { termId, weekNumber, weekStartDate, weekEndDate, classes, timeSlots, examWeeks } = params
+  const blockedByDate = new Map<string, Set<string>>()
+
+  const addBlocked = (date: Date, slotId: string) => {
+    const dateKey = formatDateKey(date)
+    if (!blockedByDate.has(dateKey)) blockedByDate.set(dateKey, new Set())
+    blockedByDate.get(dateKey)!.add(slotId)
+  }
+
+  const specialEvents = await createAllSpecialEvents({
+    termId,
+    weekNumber,
+    weekStartDate,
+    weekEndDate,
+    classes,
+    timeSlots,
+    examWeeks,
+  })
+
+  for (const e of specialEvents) {
+    if (!e.specificDate) continue
+    addBlocked(e.specificDate, e.timeSlotId)
+  }
+
+  return blockedByDate
+}
+
+async function calculateRequiredEndDateForPlan(params: {
+  termId: string
+  termStartDate: Date
+  termEndDate: Date
+  totalPlannedHours: number
+  classes: Array<{ id: string; code: string }>
+  timeSlots: Array<{ id: string; slotNumber: number; startTime: string; endTime: string }>
+  workingDays: string[]
+  examWeeks?: Array<{ startDate: string; endDate: string; type: string }> | null
+}) {
+  const { termId, termStartDate, termEndDate, totalPlannedHours, classes, timeSlots, workingDays, examWeeks } = params
+  const workingDaysSet = new Set((workingDays && workingDays.length > 0) ? workingDays : DEFAULT_WORKING_DAYS)
+  const termStartDay = normalizeDate(termStartDate)
+  const termEndDay = normalizeDate(termEndDate)
+
+  let totalAvailableSlots = 0
+  let totalAvailableSlotsInCurrentTerm = 0
+  let requiredEndDate: Date | null = null
+
+  const maxWeeksToCheck = 520
+
+  for (let weekNumber = 1; weekNumber <= maxWeeksToCheck; weekNumber++) {
+    const { weekStartDate, weekEndDate } = calculateWeekDates(termStartDay, weekNumber)
+
+    const blockedSlotsByDate = await buildBlockedSlotsForWeek({
+      termId,
+      weekNumber,
+      weekStartDate,
+      weekEndDate,
+      classes,
+      timeSlots,
+      examWeeks,
+    })
+
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const currentDate = new Date(weekStartDate)
+      currentDate.setDate(weekStartDate.getDate() + dayOffset)
+      currentDate.setHours(0, 0, 0, 0)
+
+      const dayName = DAY_OF_WEEK_NAMES[currentDate.getDay()]
+      if (!workingDaysSet.has(dayName)) continue
+
+      const dateKey = formatDateKey(currentDate)
+      const blockedSlots = blockedSlotsByDate.get(dateKey)
+      const blockedCount = blockedSlots ? blockedSlots.size : 0
+      const isExam = isExamWeek(currentDate, examWeeks || null)
+      const availableSlots = isExam ? 0 : Math.max(0, timeSlots.length - blockedCount)
+
+      totalAvailableSlots += availableSlots
+      if (currentDate <= termEndDay) {
+        totalAvailableSlotsInCurrentTerm += availableSlots
+      }
+
+      if (!requiredEndDate && totalAvailableSlots >= totalPlannedHours) {
+        requiredEndDate = new Date(currentDate)
+      }
+    }
+
+    if (requiredEndDate) break
+  }
+
+  return {
+    requiredEndDate,
+    totalAvailableSlotsInCurrentTerm,
+  }
+}
+
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const termId = params.id
     const body = await req.json()
-    const { weekNumber, generateAll, regenerateAll, resetAndGenerateAll } = body
+    const { weekNumber, generateAll, regenerateAll, resetAndGenerateAll, skipExtensionCheck } = body
     const shouldGenerateAll = !!(generateAll || regenerateAll || resetAndGenerateAll)
 
     if (shouldGenerateAll) {
-      return await generateAllWeeks(termId)
+      return await generateAllWeeks(termId, { skipExtensionCheck })
     }
 
     if (!weekNumber) {
@@ -106,6 +225,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         instructor: true,
         class: true,
         timeSlot: true,
+        specialEvent: true,
       },
       orderBy: [
         { specificDate: 'asc' },
@@ -150,16 +270,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const currentDate = new Date(weekStartDate)
       currentDate.setDate(currentDate.getDate() + dayOffset)
-      const dateStr = currentDate.toISOString().split('T')[0]
+      const dateStr = formatLocalDate(currentDate)
       const dayOfWeek = currentDate.getDay()
       
       const daySlots = timeSlots.map((timeSlot) => {
-        const lesson = lessonsWithCounters.find(
-          (l) =>
-            !!l.specificDate &&
-            l.specificDate.toISOString().split('T')[0] === dateStr &&
+        const lesson = lessonsWithCounters.find((l) => {
+          if (!l.specificDate) return false
+          return (
+            formatLocalDate(l.specificDate) === dateStr &&
             l.timeSlot.slotNumber === timeSlot.slotNumber
-        )
+          )
+        })
         
         if (lesson) {
           return {
@@ -173,7 +294,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             } : null,
             specialEvent: lesson.isSpecialEvent ? {
               id: lesson.id,
-              eventTitle: lesson.course?.name || 'Özel Etkinlik',
+              eventTitle: lesson.specialEvent?.eventTitle || lesson.specialEventTitle || 'Özel Etkinlik',
             } : null,
             instructor: lesson.instructor,
             class: lesson.class,
@@ -196,8 +317,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({
       termId,
       weekNumber,
-      weekStartDate: weekStartDate.toISOString().split('T')[0],
-      weekEndDate: weekEndDate.toISOString().split('T')[0],
+      weekStartDate: formatLocalDate(weekStartDate),
+      weekEndDate: formatLocalDate(weekEndDate),
       weekDays,
       totalLessons: lessonsWithCounters.length,
       totalWeeks: totalWeeksCalculated,
@@ -250,7 +371,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 }
 
-async function generateAllWeeks(termId: string) {
+export async function generateAllWeeks(termId: string, options?: { skipExtensionCheck?: boolean }) {
   try {
     const term = await prisma.term.findUnique({
       where: { id: termId },
@@ -278,6 +399,50 @@ async function generateAllWeeks(termId: string) {
         },
         { status: 400 }
       )
+    }
+
+    const timeSlots = await getOrCreateDefaultTimeSlots()
+
+    const plannedAgg = await prisma.termCoursePlan.aggregate({
+      where: { termId },
+      _sum: { totalPlannedHours: true },
+    })
+    const totalPlannedHours = plannedAgg._sum.totalPlannedHours || 0
+
+    if (totalPlannedHours > 0 && !options?.skipExtensionCheck) {
+      const workingDays = (term.settings.workingDays as string[]) || DEFAULT_WORKING_DAYS
+
+      const capacityCheck = await calculateRequiredEndDateForPlan({
+        termId,
+        termStartDate: term.startDate,
+        termEndDate: term.endDate,
+        totalPlannedHours,
+        classes: term.classes,
+        timeSlots,
+        workingDays,
+        examWeeks: (term.settings.examWeeks as Array<{ startDate: string; endDate: string; type: string }>) || [],
+      })
+
+      if (!capacityCheck.requiredEndDate) {
+        return NextResponse.json(
+          { error: 'Planlama için uygun bitiş tarihi hesaplanamadı' },
+          { status: 500 }
+        )
+      }
+
+      if (capacityCheck.requiredEndDate > term.endDate) {
+        const totalAvailableSlots = capacityCheck.totalAvailableSlotsInCurrentTerm
+        const additionalSlotsNeeded = Math.max(0, totalPlannedHours - totalAvailableSlots)
+        return NextResponse.json({
+          requiresExtension: true,
+          message: 'Dönem süresi planlanan dersleri tamamlamak için yetersiz',
+          totalPlannedHours,
+          totalAvailableSlots,
+          additionalSlotsNeeded,
+          suggestedEndDate: formatDateKey(capacityCheck.requiredEndDate),
+          suggestedTotalWeeks: calculateTotalWeeks(term.startDate, capacityCheck.requiredEndDate),
+        })
+      }
     }
 
     const totalWeeks = calculateTotalWeeks(term.startDate, term.endDate)
@@ -356,7 +521,7 @@ async function generateAllWeeks(termId: string) {
   }
 }
 
-async function generateSingleWeek(termId: string, weekNumber: number) {
+export async function generateSingleWeek(termId: string, weekNumber: number) {
   const term = await prisma.term.findUnique({
     where: { id: termId },
     include: {
@@ -402,14 +567,28 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     weekEndDate,
     classes,
     timeSlots,
+    examWeeks: (term.settings.examWeeks as Array<{ startDate: string; endDate: string; type: string }>) || [],
   })
+
+  const uniqueSpecialEvents = (() => {
+    const seen = new Set<string>()
+    const list: typeof specialEvents = []
+    for (const e of specialEvents) {
+      const key = `${e.classId}|${e.dayOfWeek}|${e.timeSlotId}|${e.specificDate.toISOString()}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      list.push(e)
+    }
+    return list
+  })()
 
   const formatMonthKey = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`
 
   if (weekNumber === 1) {
-    for (const event of specialEvents) {
-      await prisma.dailyLesson.create({ data: event })
-    }
+    await prisma.dailyLesson.createMany({
+      data: uniqueSpecialEvents,
+      skipDuplicates: true,
+    })
 
     const workingDays = (term.settings.workingDays as string[]) || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
     const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
@@ -422,14 +601,14 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
 
     const uniqueSlotSet = new Set<string>()
-    for (const e of specialEvents) {
+    for (const e of uniqueSpecialEvents) {
       uniqueSlotSet.add(`${e.specificDate.toISOString()}|${e.timeSlotId}`)
     }
     const specialEventUniqueSlots = uniqueSlotSet.size
 
     return {
       message: `${weekNumber}. hafta programı oluşturuldu (İntibak Haftası)`,
-      createdLessons: specialEvents.length,
+      createdLessons: uniqueSpecialEvents.length,
       weekNumber,
       weekStartDate,
       weekEndDate,
@@ -459,8 +638,12 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
 
   const specialEventSlots = new Map<string, string[]>()
   let specialEventUniqueSlots = 0
-  for (const event of specialEvents) {
-    await prisma.dailyLesson.create({ data: event })
+  await prisma.dailyLesson.createMany({
+    data: uniqueSpecialEvents,
+    skipDuplicates: true,
+  })
+
+  for (const event of uniqueSpecialEvents) {
 
     const dateKey = event.specificDate.toISOString()
     if (!specialEventSlots.has(dateKey)) {
@@ -474,18 +657,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
     }
   }
 
-  const peSlots = getPhysicalEducationReservedSlots(weekStartDate, timeSlots)
   let peReservedUniqueSlots = 0
-  for (const { date, slotId } of peSlots) {
-    const dateKey = date.toISOString()
-    if (!specialEventSlots.has(dateKey)) {
-      specialEventSlots.set(dateKey, [])
-    }
-    if (!specialEventSlots.get(dateKey)!.includes(slotId)) {
-      specialEventSlots.get(dateKey)!.push(slotId)
-      peReservedUniqueSlots += 1
-    }
-  }
 
   const workingDays = (term.settings.workingDays as string[]) || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
   const dayNames: string[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
@@ -719,7 +891,12 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
   // Haftayı gün-gün, slot-slot doldur: Her slot için TEK ders seç, tüm sınıflara aynı dersi yaz.
   let lastMonthKey: string | null = null
 
+  const examWeeks = (term.settings.examWeeks as Array<{ startDate: string; endDate: string; type: string }>) || []
+
   for (const currentDate of schedulableDates) {
+    if (isExamWeek(currentDate, examWeeks)) {
+      continue
+    }
     const dayName = dayNames[currentDate.getDay()]
     const dateKey = currentDate.toISOString()
     const occupiedSlotIds = specialEventSlots.get(dateKey) || []
@@ -897,7 +1074,7 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
 
   return {
     message: `${weekNumber}. hafta programı oluşturuldu`,
-    createdLessons: specialEvents.length + createdLessonsCount,
+    createdLessons: uniqueSpecialEvents.length + createdLessonsCount,
     weekNumber,
     weekStartDate,
     weekEndDate,
@@ -927,15 +1104,12 @@ async function generateSingleWeek(termId: string, weekNumber: number) {
 }
 
 function calculateWeekDates(termStartDate: Date, weekNumber: number) {
-  const startDate = new Date(termStartDate)
-  const startDayOfWeek = startDate.getDay()
-  const daysToMonday = startDayOfWeek === 0 ? -6 : 1 - startDayOfWeek
-  const firstMonday = new Date(startDate)
-  firstMonday.setDate(startDate.getDate() + daysToMonday)
-  firstMonday.setHours(0, 0, 0, 0)
+  // Haftayı dönem başlangıcından başlat (Pazartesi hizalama yok)
+  const source = new Date(termStartDate)
+  const startDate = new Date(source.getFullYear(), source.getMonth(), source.getDate())
 
-  const weekStartDate = new Date(firstMonday)
-  weekStartDate.setDate(firstMonday.getDate() + (weekNumber - 1) * 7)
+  const weekStartDate = new Date(startDate)
+  weekStartDate.setDate(startDate.getDate() + (weekNumber - 1) * 7)
 
   const weekEndDate = new Date(weekStartDate)
   weekEndDate.setDate(weekStartDate.getDate() + 6)
@@ -946,15 +1120,13 @@ function calculateWeekDates(termStartDate: Date, weekNumber: number) {
 
 function calculateTotalWeeks(startDate: Date, endDate: Date) {
   const start = new Date(startDate)
+  start.setHours(0, 0, 0, 0)
   const end = new Date(endDate)
-  const startDayOfWeek = start.getDay()
-  const daysToMonday = startDayOfWeek === 0 ? -6 : 1 - startDayOfWeek
-  const firstMonday = new Date(start)
-  firstMonday.setDate(start.getDate() + daysToMonday)
-  firstMonday.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 59, 999)
 
-  const totalWeeks = Math.ceil((end.getTime() - firstMonday.getTime()) / (7 * 24 * 60 * 60 * 1000))
-  return totalWeeks
+  const diffMs = end.getTime() - start.getTime()
+  const totalDays = Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1
+  return Math.max(1, Math.ceil(totalDays / 7))
 }
 
 // Bir ayda kaç hafta (iş haftası) olduğunu hesapla

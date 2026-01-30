@@ -90,18 +90,24 @@ export function useEditTerm({ term, isOpen, onSuccess, onError, onClose }: UseEd
 
     setIsSubmitting(true)
     try {
-      const res = await fetch(`/api/terms/${term.id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/term-actions', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          action: 'update',
+          id: term.id,
+          ...formData,
+        }),
       })
+
+      const contentType = res.headers.get('content-type') || ''
+      const data = contentType.includes('application/json') ? await res.json() : null
 
       if (res.ok) {
         onSuccess('Dönem başarıyla güncellendi')
         onClose()
       } else {
-        const error = await res.json()
-        onError(error.error || 'Dönem güncellenemedi')
+        onError(data?.error || 'Dönem güncellenemedi')
       }
     } catch (error) {
       console.error('Dönem düzenleme hatası:', error)

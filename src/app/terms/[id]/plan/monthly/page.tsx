@@ -169,16 +169,19 @@ export default function MonthlyPlanPage() {
       onConfirm: async () => {
         setGenerating(true)
         try {
-          const res = await fetch(`/api/terms/${termId}/monthly-plans`, {
+          const res = await fetch('/api/monthly-plans-generate', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ termId }),
           })
-          const data = await res.json()
+          const contentType = res.headers.get('content-type') || ''
+          const data = contentType.includes('application/json') ? await res.json() : null
           
           if (res.ok) {
-            showToast(data.message || (isUpdate ? 'Aylık planlar başarıyla güncellendi' : 'Aylık planlar başarıyla oluşturuldu'), 'success')
+            showToast(data?.message || (isUpdate ? 'Aylık planlar başarıyla güncellendi' : 'Aylık planlar başarıyla oluşturuldu'), 'success')
             fetchPlans()
           } else {
-            showToast(data.error || (isUpdate ? 'Aylık planlar güncellenemedi' : 'Aylık planlar oluşturulamadı'), 'error')
+            showToast(data?.error || (isUpdate ? 'Aylık planlar güncellenemedi' : 'Aylık planlar oluşturulamadı'), 'error')
           }
         } catch (error) {
           console.error('Generate monthly plans error:', error)

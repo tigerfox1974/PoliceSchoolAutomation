@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { DayOfWeek, SpecialEventType } from '@prisma/client'
+import { isExamWeek } from './scheduleValidators'
 
 /**
  * Özel etkinlikleri haftalık programa ekle
@@ -16,6 +17,7 @@ interface SpecialEventOptions {
   weekEndDate: Date
   classes: Array<{ id: string; code: string }>
   timeSlots: Array<{ id: string; slotNumber: number; startTime: string; endTime: string }>
+  examWeeks?: Array<{ startDate: string; endDate: string; type: string }> | null
 }
 
 interface DailyLessonCreate {
@@ -31,6 +33,120 @@ interface DailyLessonCreate {
   specialEventId?: string
   specialEventTitle?: string
   requiresInstructor: boolean
+}
+
+const dayOfWeekMap: Record<number, DayOfWeek> = {
+  1: 'MONDAY',
+  2: 'TUESDAY',
+  3: 'WEDNESDAY',
+  4: 'THURSDAY',
+  5: 'FRIDAY',
+  6: 'SATURDAY',
+  7: 'SUNDAY',
+}
+
+const getDayNumber = (date: Date) => {
+  const js = date.getDay() // 0=Sun
+  return js === 0 ? 7 : js
+}
+
+const normalizeDate = (d: Date) => {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+async function createCustomEventsForWeek(
+  options: SpecialEventOptions
+): Promise<DailyLessonCreate[]> {
+  const { termId, weekStartDate, weekEndDate, classes, timeSlots, examWeeks } = options
+  const lessons: DailyLessonCreate[] = []
+
+  const events = await prisma.specialEvent.findMany()
+
+  const weekStart = normalizeDate(weekStartDate)
+  const weekEnd = normalizeDate(weekEndDate)
+
+  const hasExamWeek = !!examWeeks && examWeeks.length > 0 &&
+    (() => {
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const d = new Date(weekStart)
+        d.setDate(weekStart.getDate() + dayOffset)
+        if (isExamWeek(d, examWeeks)) return true
+      }
+      return false
+    })()
+
+  const isExamTitle = (title?: string | null, description?: string | null) => {
+    const t = (title || '').toLowerCase()
+    const d = (description || '').toLowerCase()
+    return t.includes('sınav') || t.includes('sinav') || d.includes('sınav') || d.includes('sinav')
+  }
+
+  for (const event of events) {
+    if (event.eventType === 'ORIENTATION') continue
+    if (event.eventType === 'MANAGEMENT') continue
+    if (event.eventType === 'SOCIAL_SPORTS') continue
+
+    if (hasExamWeek && !isExamTitle(event.eventTitle, event.description)) {
+      continue
+    }
+
+    const start = event.startDate ? normalizeDate(event.startDate) : null
+    const end = event.endDate ? normalizeDate(event.endDate) : start
+
+    if (!event.dayOfWeek && !start && !end) {
+      continue
+    }
+
+    const isDateBound = !!start
+    const inRange = !isDateBound || (start && end && weekEnd >= start && weekStart <= end)
+    if (!inRange) continue
+
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const currentDate = new Date(weekStart)
+      currentDate.setDate(weekStart.getDate() + dayOffset)
+      const currentDayNumber = getDayNumber(currentDate)
+
+      if (event.dayOfWeek && currentDayNumber !== event.dayOfWeek) {
+        continue
+      }
+
+      if (!event.dayOfWeek && start && end) {
+        if (currentDate < start || currentDate > end) continue
+      }
+
+      const startSlot = event.slotIndex || 1
+      const duration = Math.max(1, event.duration || 1)
+
+      for (let i = 0; i < duration; i++) {
+        const slotNumber = startSlot + i
+        const slot = timeSlots.find((s) => s.slotNumber === slotNumber)
+        if (!slot) continue
+
+        const dayOfWeek = dayOfWeekMap[currentDayNumber]
+
+        for (const classItem of classes) {
+          lessons.push({
+            termId,
+            classId: classItem.id,
+            courseId: null,
+            instructorId: null,
+            dayOfWeek,
+            timeSlotId: slot.id,
+            specificDate: currentDate,
+            isSpecialEvent: true,
+            specialEventType: event.eventType,
+            specialEventId: event.id,
+            specialEventTitle: event.eventTitle,
+            requiresInstructor: event.requiresInstructor,
+          })
+        }
+      }
+    }
+  }
+
+  return lessons
 }
 
 /**
@@ -90,7 +206,7 @@ export async function createOrientationWeek(
           isSpecialEvent: true,
           specialEventType: 'ORIENTATION',
           specialEventId: orientationEvent.id,
-          specialEventTitle: 'İntibak Eğitimi',
+          specialEventTitle: orientationEvent.eventTitle,
           requiresInstructor: false,
         })
       }
@@ -154,7 +270,7 @@ export async function createManagementHours(
       isSpecialEvent: true,
       specialEventType: 'MANAGEMENT',
       specialEventId: managementEvent.id,
-      specialEventTitle: 'Haftalık Müdüriyet',
+      specialEventTitle: managementEvent.eventTitle,
       requiresInstructor: false,
     })
   }
@@ -217,8 +333,8 @@ export async function createSocialSportsHours(
         specificDate: wednesday,
         isSpecialEvent: true,
         specialEventType: 'SOCIAL_SPORTS',
-        specialEventId: socialSportsEvent.id,
-        specialEventTitle: 'Sosyal ve Sportif Faaliyetler',
+          specialEventId: socialSportsEvent.id,
+          specialEventTitle: socialSportsEvent.eventTitle,
         requiresInstructor: false,
       })
     }
@@ -235,22 +351,39 @@ export async function createAllSpecialEvents(
 ): Promise<DailyLessonCreate[]> {
   const lessons: DailyLessonCreate[] = []
 
+  const hasExamWeek = !!options.examWeeks && options.examWeeks.length > 0 && (() => {
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const d = new Date(options.weekStartDate)
+      d.setDate(options.weekStartDate.getDate() + dayOffset)
+      if (isExamWeek(d, options.examWeeks)) return true
+    }
+    return false
+  })()
+
   // 1. İlk hafta: İntibak Eğitimi
-  const orientation = await createOrientationWeek(options)
-  lessons.push(...orientation)
+  if (!hasExamWeek) {
+    const orientation = await createOrientationWeek(options)
+    lessons.push(...orientation)
+  }
 
   // İlk haftaysa, diğer etkinlikleri ekleme (tüm hafta intibak)
-  if (options.weekNumber === 1) {
+  if (options.weekNumber === 1 && !hasExamWeek) {
     return lessons
   }
 
-  // 2. Müdüriyet (Her Cuma 7. ders)
-  const management = await createManagementHours(options)
-  lessons.push(...management)
+  if (!hasExamWeek) {
+    // 2. Müdüriyet (Her Cuma 7. ders)
+    const management = await createManagementHours(options)
+    lessons.push(...management)
 
-  // 3. Sosyal ve Sportif (Her Çarşamba 6-7. ders)
-  const socialSports = await createSocialSportsHours(options)
-  lessons.push(...socialSports)
+    // 3. Sosyal ve Sportif (Her Çarşamba 6-7. ders)
+    const socialSports = await createSocialSportsHours(options)
+    lessons.push(...socialSports)
+  }
+
+  // 4. Kullanıcı tanımlı özel etkinlikler
+  const customEvents = await createCustomEventsForWeek(options)
+  lessons.push(...customEvents)
 
   return lessons
 }
